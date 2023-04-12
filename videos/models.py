@@ -1,15 +1,6 @@
 from django.db import models
 
 # Create your models here.
-class User(models.Model):
-    id=models.IntegerField('用户ID',max_length=10)#我的想法是，像qq账号一样，10位，完全不重复
-    username=models.CharField('用户名',max_length=20)
-    email=models.CharField('邮箱')
-    password=models.CharField('密码',max_length=16)
-    avatar_url=models.CharField('头像地址')
-    created_at=models.DateTimeField('创建时间')
-    status=models.IntegerField('状态')
-
 class Category(models.Model):
     id=models.IntegerField('分类ID',max_length=10)#从1开始取吧
     name=models.CharField('分类名称',max_length=20)
@@ -28,4 +19,22 @@ class Video(models.Model):
     reviewed_reason=models.CharField('审核原因')
     play_amount=models.IntegerField('播放量')
 
+class Like(models.Model):
+    id = models.IntegerField('点赞ID', max_length=10)
+    user_id=models.IntegerField('点赞者ID', max_length=10)
+    video_id=models.IntegerField('被点赞的视频ID', max_length=10)
+    created_at=models.DateTimeField('点赞时间')
 
+class Comment(models.Model):
+    id = models.IntegerField('评论ID', max_length=10)
+    user_id = models.IntegerField('评论者ID', max_length=10)
+    video_id = models.IntegerField('被评论的视频ID', max_length=10)
+    content=models.CharField('评论内容',max_length=255)
+    created_at = models.DateTimeField('点赞时间')
+
+class Reply(models.Model):
+    id = models.IntegerField('回复ID', max_length=10)
+    user_id = models.IntegerField('回复者ID', max_length=10)
+    comment_id = models.IntegerField('所属评论ID', max_length=10)
+    content=models.CharField('回复内容',max_length=255)
+    created_at = models.DateTimeField('回复时间')
