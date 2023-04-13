@@ -83,7 +83,7 @@ DATABASES = {
         "USER": "hanxy",
         "PASSWORD": "hxy@7163860",
         "HOST": "bj-cynosdbmysql-grp-420r0rxw.sql.tencentcdb.com",
-        "POST": "24173",
+        "PORT": "24173",
     }
 }
 
