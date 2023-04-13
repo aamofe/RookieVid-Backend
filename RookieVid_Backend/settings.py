@@ -31,6 +31,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    "accounts",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -74,10 +75,15 @@ WSGI_APPLICATION = "RookieVid_Backend.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
 
+# 连接mysql
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "ENGINE": "django.db.backends.mysql",
+        "NAME": "RookieVid",
+        "USER": "hanxy",
+        "PASSWORD": "hxy@7163860",
+        "HOST": "bj-cynosdbmysql-grp-420r0rxw.sql.tencentcdb.com",
+        "POST": "24173",
     }
 }
 
@@ -122,3 +128,14 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# 邮件相关配置
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'  # 发送邮件配置
+EMAIL_HOST = "smtp.qq.com"     # 服务器名称
+EMAIL_PORT = 25                 # 一般情况下都为25
+EMAIL_HOST_USER = "1151801165@qq.com"     # 自己邮箱
+EMAIL_HOST_PASSWORD = 'azmyzbhzjeqxbaha'     # 在邮箱中设置的客户端授权密码
+EMAIL_USE_TLS = True       # 是否使用TLS安全传输协议
+EMAIL_FROM = "RookieVid"      # 邮箱来自
+email_title = '邮箱验证'
+# EMAIL_USE_SSL = True    # 是否使用SSL加密，qq企业邮箱要求使用
