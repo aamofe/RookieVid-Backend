@@ -16,7 +16,7 @@ import random
 @csrf_exempt
 def send_mail_vcode(request):
     to_email = request.POST.get("email");
-    if re.match(to_email, '\w+@\w+.\w+') is None:
+    if re.match('\w+@\w+.\w+', str(to_email)) is None:
         return JsonResponse({'errno': 1004, 'msg': "邮箱格式错误"})
     # 获取当前时间
     now_time = time.time()
@@ -79,10 +79,10 @@ def register(request):
         password_2 = request.POST.get('password_2')
         email = request.POST.get('email')
         # 用户名长度为1-20位
-        if re.match(username, '.{1,20}') is None:
+        if re.match('.{1,20}', str(username)) is None:
             return JsonResponse({'errno': 1001, 'msg': "用户名不合法"})
         # 密码长度为8-16位，且同时包含数字和字母
-        if re.match(password_1, '(?!^[0-9]+$)(?!^[a-zA-Z]+$)[0-9A-Za-z]{8,16}') is None:
+        if re.match('(?!^[0-9]+$)(?!^[a-zA-Z]+$)[0-9A-Za-z]{8,16}', str(password_1)) is None:
             return JsonResponse({'errno': 1002, 'msg': "密码格式错误"})
         if password_1 != password_2:
             return JsonResponse({'errno': 1003, 'msg': "两次输入的密码不同"})
@@ -106,9 +106,9 @@ def login(request):
     if request.method == 'POST':
         user_id = request.POST.get('user')  # 获取请求数据
         password = request.POST.get('password')
-        if re.match(user_id, '[0-9]{10}'):
+        if re.match('[0-9]{10}', str(user_id)):
             user = User.objects.get(id=user_id)
-        elif re.match(user_id, '\w+@\w+.\w+'):
+        elif re.match('\w+@\w+.\w+', str(user_id)):
             user = User.objects.get(email=user_id)
         else:
             return JsonResponse({'errno': 1001, 'msg': "请先注册"})
