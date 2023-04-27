@@ -81,8 +81,8 @@ DATABASES = {
         "NAME": "RookieVid",
         "USER": "aamofe",
         "PASSWORD": "aamofe12@",
-        "HOST": "bj-cynosdbmysql-grp-420r0rxw.sql.tencentcdb.com",
-        "PORT": "24173",
+        "HOST": "101.43.159.45",
+        "PORT": "3306",
     }
 }
 
