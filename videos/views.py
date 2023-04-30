@@ -75,3 +75,10 @@ def upload_video(request):
         return JsonResponse({'errno': 0, 'msg': "上传成功"})
 
     return JsonResponse({'errno': 2001, 'msg': "请求方法不合法"})
+
+@csrf_exempt
+def manage_video(request):
+    if request.method=='GET':
+        #目前只考虑删除稿件
+        op=request.GET.get('操作')
+
