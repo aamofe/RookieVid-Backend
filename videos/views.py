@@ -41,7 +41,11 @@ def upload_video(request):
         label = request.POST.get('label')
         title = request.POST.get('title')
         description = request.POST.get('description')
-
+        print("video_file:", video_file)
+        print("cover_file:", cover_file)
+        print("label:", label)
+        print("title:", title)
+        print("description:", description)
         # 将视频和封面文件上传到云服务器
         video_storage = SFTPStorage(host='101.43.159.45', username='aamofe', password='aamofe12@')
         cover_storage = SFTPStorage(host='101.43.159.45', username='aamofe', password='aamofe12@')
