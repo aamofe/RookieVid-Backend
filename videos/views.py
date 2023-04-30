@@ -42,10 +42,6 @@ def upload_video(request):
         title = request.POST.get('title')
         description = request.POST.get('description')
 
-        # 判断标签是否有效
-        if label not in LABELS:
-            return JsonResponse({'success': False, 'error': 'Invalid label'})
-
         # 将视频和封面文件上传到云服务器
         video_storage = SFTPStorage(host='101.43.159.45', username='aamofe', password='aamofe12@')
         cover_storage = SFTPStorage(host='101.43.159.45', username='aamofe', password='aamofe12@')
@@ -76,6 +72,6 @@ def upload_video(request):
         )
         video.save()
 
-        return JsonResponse({'success': True})
+        return JsonResponse({'errno': 0, 'msg': "上传成功"})
 
-    return JsonResponse({'success': False, 'error': 'Invalid request method'})
+    return JsonResponse({'errno': 2001, 'msg': "请求方法不合法"})
