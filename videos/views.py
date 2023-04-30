@@ -28,6 +28,13 @@ def upload_video(request):
         description = request.POST.get('description')
         video_count = Video.objects.all().count()
         video_id = video_count + 1
+        print('video_file:', video_file)
+        print('cover_file:', cover_file)
+        print('label:', label)
+        print('title:', title)
+        print('description:', description)
+        print('video_count:', video_count)
+        print('video_id:', video_id)
         # 将视频和封面文件上传到云服务器
         video_storage = SFTPStorage()
         cover_storage = SFTPStorage()
