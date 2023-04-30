@@ -138,3 +138,15 @@ EMAIL_USE_TLS = True       # 是否使用TLS安全传输协议
 EMAIL_FROM = "RookieVid"      # 邮箱来自
 email_title = '邮箱验证'
 # EMAIL_USE_SSL = True    # 是否使用SSL加密，qq企业邮箱要求使用
+
+DEFAULT_FILE_STORAGE = 'storages.backends.sftpstorage.SFTPStorage'
+
+# SFTP 存储后端的配置
+SFTP_STORAGE_HOST = '101.43.159.45'
+SFTP_STORAGE_ROOT = '/home/aamofe/data/'
+SFTP_STORAGE_PARAMS = {
+    'username': 'aamofe',
+    'password': 'aamofe12@',
+}
+SFTP_STORAGE_SECURE = False
+SFTP_STORAGE_ROOT_URL = 'http://101.43.159.45/'
