@@ -33,11 +33,16 @@ def upload_video(request):
         cover_storage = SFTPStorage()
         video_storage.location = 'data/video_file/'
         cover_storage.location = 'data/video_cover/'
+        print("video_storage : ",video_storage)
+        print("cover_storage_storage : ",cover_storage)
+        print("video_storage.location : ",video_storage.location)
+        print("cover_storage.location : ",cover_storage.location)
         #save() 方法的参数是 Django 的 File 对象
         #upload() 方法的参数是本地文件路径
         video_path = video_storage.save(f'{video_id}_{title}.mp4', video_file)
         cover_path = cover_storage.save(f'{video_id}_{title}.png', cover_file)
-
+        print("video_path : ",video_path)
+        print("cover_path : ",cover_path)
         video_storage.close()
         cover_storage.close()
 
