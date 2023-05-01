@@ -7,7 +7,7 @@ from storages.backends.sftpstorage import SFTPStorage
 from django.db.models import Q
 import videos
 from RookieVid_Backend import settings
-
+from django.db.models import Max
 import paramiko
 
 from videos.models import Video
@@ -26,13 +26,8 @@ def upload_video(request):
         label = request.POST.get('label')
         title = request.POST.get('title')
         description = request.POST.get('description')
-        video_count = Video.objects.all().count()
-        video_id = video_count + 1
-        print('video_file:', video_file.name)
-        print('cover_file:', cover_file.name)
-        print('label:', label)
-        print('title:', title)
-        print('description:', description)
+        max_id = Video.objects.all().aggregate(Max('id'))['id__max']
+        video_id = max_id + 1 if max_id else 1
         
         # # 将视频和封面文件上传到云服务器
         # video_storage = SFTPStorage()
@@ -53,7 +48,7 @@ def upload_video(request):
         # cover_storage.close()
 
         video_path = os.path.join(settings.VIDRO_URL, f'{video_id}_{title}.mp4')
-        cover_path = os.path.join(settings.COVER_URL, f'{video_id}_{title}.mp4')
+        cover_path = os.path.join(settings.COVER_URL, f'{video_id}_{title}.png')
 
         with open(video_path, 'wb+') as f:
             for chunk in video_file.chunks():
@@ -87,8 +82,8 @@ def upload_video(request):
 def manage_video(request):
     if request.method == 'GET':
         # 获取操作类型和视频ID
-        op = request.GET.get('操作')
-        video_id = request.GET.get('视频ID')
+        op = request.GET.get('op')
+        video_id = request.GET.get('video_id')
 
         if op == 'delete':
             try:
@@ -100,7 +95,6 @@ def manage_video(request):
                 return JsonResponse({'errno': 4001, 'msg': '视频不存在'})
         else:
             return JsonResponse({'errno': 4002, 'msg': '操作不合法'})
-
     else:
         return JsonResponse({'errno': 2001, 'msg': '请求方法不合法'})
 

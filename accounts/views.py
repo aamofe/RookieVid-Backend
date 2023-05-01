@@ -78,7 +78,7 @@ def register(request):
         password_1 = request.POST.get('password_1')
         password_2 = request.POST.get('password_2')
         email = request.POST.get('email')
-        print("username : ",username)
+        #print("username : ",username)
 
         # 用户名长度为1-20位
         if re.match('.{1,20}', str(username)) is None:
@@ -105,12 +105,12 @@ def register(request):
 @csrf_exempt
 def login(request):
     if request.method == 'POST':
-        user_id = request.POST.get('user')  # 获取请求数据
+        uid = request.POST.get('uid')  # 获取请求数据
         password = request.POST.get('password')
-        if re.match('[0-9]{10}', str(user_id)):
-            user = User.objects.get(id=user_id)
-        elif re.match('\w+@\w+.\w+', str(user_id)):
-            user = User.objects.get(email=user_id)
+        if re.match('[0-9]{10}', str(uid)):
+            user = User.objects.get(id=uid)
+        elif re.match('\w+@\w+.\w+', str(uid)):
+            user = User.objects.get(email=uid)
         else:
             return JsonResponse({'errno': 1001, 'msg': "请先注册"})
         if user.password == password:  # 判断请求的密码是否与数据库存储的密码相同

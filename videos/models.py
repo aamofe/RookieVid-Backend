@@ -1,10 +1,6 @@
 from django.db import models
 
 # Create your models here.
-class Category(models.Model):
-    name=models.CharField('分类名称',max_length=20)
-    class Meta:
-        app_label = 'videos'
 class Video(models.Model):
     label=models.CharField("标签",default="娱乐",max_length=255)
     title=models.CharField('视频标题',max_length=20)
