@@ -28,39 +28,53 @@ def upload_video(request):
         description = request.POST.get('description')
         video_count = Video.objects.all().count()
         video_id = video_count + 1
-        print('video_file:', video_file)
-        print('cover_file:', cover_file)
+        print('video_file:', video_file.name)
+        print('cover_file:', cover_file.name)
         print('label:', label)
         print('title:', title)
         print('description:', description)
-        print('video_count:', video_count)
-        print('video_id:', video_id)
-        # 将视频和封面文件上传到云服务器
-        video_storage = SFTPStorage()
-        cover_storage = SFTPStorage()
-        video_storage.location = 'data/video_file/'
-        cover_storage.location = 'data/video_cover/'
-        print("video_storage : ",video_storage)
-        print("cover_storage_storage : ",cover_storage)
-        print("video_storage.location : ",video_storage.location)
-        print("cover_storage.location : ",cover_storage.location)
-        #save() 方法的参数是 Django 的 File 对象
-        #upload() 方法的参数是本地文件路径
-        video_path = video_storage.save(f'{video_id}_{title}.mp4', video_file)
-        cover_path = cover_storage.save(f'{video_id}_{title}.png', cover_file)
-        print("video_path : ",video_path)
-        print("cover_path : ",cover_path)
-        video_storage.close()
-        cover_storage.close()
+        
+        # # 将视频和封面文件上传到云服务器
+        # video_storage = SFTPStorage()
+        # cover_storage = SFTPStorage()
+        # video_storage.location = 'data/video_file/'
+        # cover_storage.location = 'data/video_cover/'
+        # print("video_storage : ",video_storage)
+        # print("cover_storage_storage : ",cover_storage)
+        # print("video_storage.location : ",video_storage.location)
+        # print("cover_storage.location : ",cover_storage.location)
+        # #save() 方法的参数是 Django 的 File 对象
+        # #upload() 方法的参数是本地文件路径
+        # video_path = video_storage.save(f'{video_id}_{title}.mp4', video_file)
+        # cover_path = cover_storage.save(f'{video_id}_{title}.png', cover_file)
+        # print("video_path : ",video_path)
+        # print("cover_path : ",cover_path)
+        # video_storage.close()
+        # cover_storage.close()
+
+        video_path = os.path.join(settings.VIDRO_URL, f'{video_id}_{title}.mp4')
+        cover_path = os.path.join(settings.COVER_URL, f'{video_id}_{title}.mp4')
+
+        with open(video_path, 'wb+') as f:
+            for chunk in video_file.chunks():
+                f.write(chunk)
+                
+        with open(cover_path, 'wb+') as f:
+            for chunk in cover_file.chunks():
+                f.write(chunk)
+        try:
+            user_id = request.session['id']
+        except:
+            user_id = 0
 
         # 将视频信息保存到数据库
         video = Video.objects.create(
-            id=video_id,
             label=LABELS.index(label),
             title=title,
             description=description,
             video_path=video_path,
             cover_path=cover_path,
+            user_id=user_id,
             created_at=datetime.datetime.now()
         )
         video.save()

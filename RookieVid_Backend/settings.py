@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -23,7 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "django-insecure-t=v6(0-5o4yt_3kskc1^o9ios59wlgcn)98b@u15%&h#)(h7fg"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS=['*']
 
@@ -31,6 +32,8 @@ ALLOWED_HOSTS=['*']
 
 INSTALLED_APPS = [
     "accounts",
+    "videos",
+    "notifications",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -150,3 +153,7 @@ SFTP_STORAGE_PARAMS = {
 }
 SFTP_STORAGE_SECURE = False
 SFTP_STORAGE_ROOT_URL = 'http://101.43.159.45/'
+
+MEDIA_ROOT = '/home/aamofe/data'
+VIDRO_URL = os.path.join(MEDIA_ROOT, 'video_file')
+COVER_URL = os.path.join(MEDIA_ROOT,"video_cover")
