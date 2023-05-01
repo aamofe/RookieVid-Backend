@@ -15,7 +15,7 @@ import random
 # 发送验证码
 @csrf_exempt
 def send_mail_vcode(request):
-    to_email = request.POST.get("email");
+    to_email = request.POST.get("email")
     if re.match('\w+@\w+.\w+', str(to_email)) is None:
         return JsonResponse({'errno': 1004, 'msg': "邮箱格式错误"})
     # 获取当前时间
@@ -30,10 +30,10 @@ def send_mail_vcode(request):
         email_title = '邮箱激活'
         email_body = "您的邮箱注册验证码为：{}, 该验证码有效时间为5分钟，请及时进行验证。".format(code)
         send_status = send_mail(email_title, email_body, EMAIL_FROM, [to_email])
-        if (send_status == 0):
+        if (send_status == 1):
             resp = {'msg': '验证码已发送，请查阅'}
         else:
-            return JsonResponse({'errno': 1006, 'msg': "验证码发送失败，请检查邮箱地址"})
+            return JsonResponse({'from': EMAIL_FROM, 'to': to_email, 'errno': 1006, 'msg': "验证码发送失败，请检查邮箱地址"})
 
         # 存储验证码
         request.session['mail_code'] = code
@@ -83,7 +83,7 @@ def register(request):
             return JsonResponse({'errno': 1001, 'msg': "用户名不合法"})
         # 密码长度为8-16位，且同时包含数字和字母
         if re.match('(?!^[0-9]+$)(?!^[a-zA-Z]+$)[0-9A-Za-z]{8,16}', str(password_1)) is None:
-            return JsonResponse({'errno': 1002, 'msg': "密码格式错误"})
+            return JsonResponse({'username':username, 'password': password_1, 'errno': 1002, 'msg': "密码格式错误"})
         if password_1 != password_2:
             return JsonResponse({'errno': 1003, 'msg': "两次输入的密码不同"})
         else:
