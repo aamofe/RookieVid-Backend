@@ -78,6 +78,8 @@ def register(request):
         password_1 = request.POST.get('password_1')
         password_2 = request.POST.get('password_2')
         email = request.POST.get('email')
+        #print("username : ",username)
+
         # 用户名长度为1-20位
         if re.match('.{1,20}', str(username)) is None:
             return JsonResponse({'errno': 1001, 'msg': "用户名不合法"})
@@ -88,28 +90,27 @@ def register(request):
             return JsonResponse({'errno': 1003, 'msg': "两次输入的密码不同"})
         else:
             # 为用户分配不重复的uid
-            random_int = random.randint(10 ** 9, 10 ** 10 - 1)
-            id = models.IntegerField(default=random_int)
-            while User.objects.get(id=id) is not None:
-                random_int = random.randint(10 ** 9, 10 ** 10 - 1)
-                id = models.IntegerField(default=random_int)
+            uid = str(random.randint(10 ** 9, 10 ** 10 - 1))
+            while User.objects.filter(uid=uid).exists():
+                uid = str(random.randint(10 ** 9, 10 ** 10 - 1))
             # 数据库存取：新建 User 对象，赋值并保存
-            new_user = User(id=id, username=username, password=password_1, email=email)
+            new_user = User(uid=uid, username=username, password=password_1, email=email)
             new_user.save()  # 一定要save才能保存到数据库中
             return JsonResponse({'errno': 0, 'msg': "注册成功"})
     else:
-        return render(request, 'register.html', {})
+        return JsonResponse({'error': 1, 'msg': "请求方式错误"})
+        # return render(request, 'register.html', {})
 
 
 @csrf_exempt
 def login(request):
     if request.method == 'POST':
-        user_id = request.POST.get('user')  # 获取请求数据
+        uid = request.POST.get('uid')  # 获取请求数据
         password = request.POST.get('password')
-        if re.match('[0-9]{10}', str(user_id)):
-            user = User.objects.get(id=user_id)
-        elif re.match('\w+@\w+.\w+', str(user_id)):
-            user = User.objects.get(email=user_id)
+        if re.match('[0-9]{10}', str(uid)):
+            user = User.objects.get(id=uid)
+        elif re.match('\w+@\w+.\w+', str(uid)):
+            user = User.objects.get(email=uid)
         else:
             return JsonResponse({'errno': 1001, 'msg': "请先注册"})
         if user.password == password:  # 判断请求的密码是否与数据库存储的密码相同
