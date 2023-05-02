@@ -103,20 +103,20 @@ def login(request):
     if request.method == 'POST':
         uid = request.POST.get('uid')  # 获取请求数据
         password = request.POST.get('password')
-        if User.objects.filter(uid=uid).exists() or User.objects.filter(email=uid):
-            if re.match('[0-9]{10}', str(uid)):
-                user = User.objects.get(id=uid)
-            elif re.match('\w+@\w+.\w+', str(uid)):
-                user = User.objects.get(email=uid)
+        if User.objects.filter(uid=uid).exists():
+            user = User.objects.get(uid=uid)
+        elif User.objects.filter(email=uid):
+            user = User.objects.get(email=uid)
         else:
             return JsonResponse({'errno': 1001, 'msg': "请先注册"})
         if user.password == password:  # 判断请求的密码是否与数据库存储的密码相同
-            request.session['id'] = user.id  # 密码正确则将用户名存储于session（django用于存储登录信息的数据库位置）
+            request.session['uid'] = user.uid  # 密码正确则将用户名存储于session（django用于存储登录信息的数据库位置）
             return JsonResponse({'errno': 0, 'msg': "登录成功"})
         else:
             return JsonResponse({'errno': 1002, 'msg': "密码错误"})
     else:
-        return render(request, 'login.html', {})
+        return JsonResponse({'error': 1, 'msg': "请求方式错误"})
+        # return render(request, 'login.html', {})
 
 
 @csrf_exempt
