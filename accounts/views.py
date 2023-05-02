@@ -105,7 +105,7 @@ def login(request):
         password = request.POST.get('password')
         if User.objects.filter(uid=uid).exists():
             user = User.objects.get(uid=uid)
-        elif User.objects.filter(email=uid):
+        elif User.objects.filter(email=uid).exists():
             user = User.objects.get(email=uid)
         else:
             return JsonResponse({'errno': 1001, 'msg': "请先注册"})
