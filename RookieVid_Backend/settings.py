@@ -35,7 +35,7 @@ INSTALLED_APPS = [
     "videos",
     "notifications",
     "corsheaders",  # 跨域请求
-    "super_admin"
+    "super_admin",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
