@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -23,7 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "django-insecure-t=v6(0-5o4yt_3kskc1^o9ios59wlgcn)98b@u15%&h#)(h7fg"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS=['*']
 
@@ -31,6 +32,10 @@ ALLOWED_HOSTS=['*']
 
 INSTALLED_APPS = [
     "accounts",
+    "videos",
+    "notifications",
+    "corsheaders",  # 跨域请求
+    "super_admin"
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -40,14 +45,45 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
+    "django.middleware.common.CommonMiddleware",
+
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
-    "django.middleware.common.CommonMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",
+    
+    #"django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
+# 跨域增加忽略
+CORS_ALLOW_CREDENTIALS = True
+CORS_ORIGIN_ALLOW_ALL = True
+
+CORS_ALLOW_METHODS = (
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+    'VIEW',
+)
+
+CORS_ALLOW_HEADERS = (
+    'XMLHttpRequest',
+    'X_FILENAME',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+    'Pragma',
+)
 
 ROOT_URLCONF = "RookieVid_Backend.urls"
 
@@ -133,8 +169,15 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'  # 发送邮件配
 EMAIL_HOST = "smtp.qq.com"     # 服务器名称
 EMAIL_PORT = 25                 # 一般情况下都为25
 EMAIL_HOST_USER = "1151801165@qq.com"     # 自己邮箱
-EMAIL_HOST_PASSWORD = 'azmyzbhzjeqxbaha'     # 在邮箱中设置的客户端授权密码
-EMAIL_USE_TLS = True       # 是否使用TLS安全传输协议
-EMAIL_FROM = "RookieVid"      # 邮箱来自
+EMAIL_HOST_PASSWORD = 'kjcbegvfzdydgbhd'     # 在邮箱中设置的客户端授权密码
+EMAIL_USE_TLS = False      # 是否使用TLS安全传输协议
+EMAIL_FROM = "1151801165@qq.com"     # 邮箱来自
 email_title = '邮箱验证'
 # EMAIL_USE_SSL = True    # 是否使用SSL加密，qq企业邮箱要求使用
+
+DEFAULT_FILE_STORAGE = 'storages.backends.sftpstorage.SFTPStorage'
+
+
+MEDIA_ROOT = '/home/aamofe/data'
+VIDRO_URL = os.path.join(MEDIA_ROOT, 'video_file')
+COVER_URL = os.path.join(MEDIA_ROOT,"video_cover")
