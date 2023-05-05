@@ -3,7 +3,7 @@ from django.db import models
 # Create your models here.
 class Video(models.Model):
     label=models.CharField("标签",default="娱乐",max_length=255)
-    title=models.CharField('视频标题',max_length=20)
+    title=models.CharField('视频标题',max_length=255)
     description=models.CharField('视频描述',max_length=255)
     video_path = models.CharField('视频地址',null=True,max_length=255)
     cover_path=models.CharField('封面地址',null=True,max_length=255)
