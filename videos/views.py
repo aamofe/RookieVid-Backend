@@ -19,19 +19,21 @@ from random import sample
 LABELS = ['娱乐', '军事', '生活', '音乐', '学习', '科技', '运动', '游戏', '影视', '美食']
 
 def get_video_by_label(request):
-    label=request.GET.get('label')
-    videos = Video.objects.filter(label=label)
-    random_videos = sample(list(videos), 10)
-    # 将选中的10个视频传递到模板中
-    context = {'videos': random_videos}
-    return render(request, 'template_name.html', context)
-def show_hot_videos(request):
-    videos = Video.objects.filter(reviewed_status=1).annotate(
-        hotness=Count('like') + F('play_amount') * 0.5
-    ).order_by('-hotness')[:6]
-    # 查询视频并按照得分排序
-    hot_videos = videos[:6]
-    return render(request, 'hot_videos.html', {'hot_videos': hot_videos})
+    if request.method == 'GET' and request.path == '/get_video_by_label':
+        label=request.GET.get('label')
+        videos = Video.objects.filter(label=label)
+        random_videos = sample(list(videos), 10)
+        # 将选中的10个视频传递到模板中
+        context = {'videos': random_videos}
+        return render(request, 'template_name.html', context)
+def get_hot_video(request):
+    if request.method == 'GET' and request.path == '/get_hot_video/':
+        videos = Video.objects.filter(reviewed_status=1).annotate(
+            hotness=Count('like') + F('play_amount') * 0.5
+        ).order_by('-hotness')[:6]
+        # 查询视频并按照得分排序
+        hot_videos = videos[:6]
+        return render(request, 'hot_videos.html', {'hot_videos': hot_videos})
 
 @csrf_exempt
 def upload_video(request):
