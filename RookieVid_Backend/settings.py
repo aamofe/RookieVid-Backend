@@ -26,7 +26,7 @@ SECRET_KEY = "django-insecure-t=v6(0-5o4yt_3kskc1^o9ios59wlgcn)98b@u15%&h#)(h7fg
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS=['*']
+
 
 # Application definition
 
@@ -56,7 +56,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
-
+ALLOWED_HOSTS=['*']
 # 跨域增加忽略
 CORS_ALLOW_CREDENTIALS = True
 CORS_ORIGIN_ALLOW_ALL = True

@@ -4,22 +4,38 @@ from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from storages.backends.sftpstorage import SFTPStorage
-from django.db.models import Q
+from django.db.models import Q, Count, F
 import videos
 from RookieVid_Backend import settings
 from django.db.models import Max
 import paramiko
 
-from videos.models import Video
+from accounts.models import User
+from videos.models import Video, Like, Comment, Reply, Collect
 
+from random import sample
 
 # 视频分类标签
 LABELS = ['娱乐', '军事', '生活', '音乐', '学习', '科技', '运动', '游戏', '影视', '美食']
 
+def get_video_by_label(request):
+    label=request.GET.get('label')
+    videos = Video.objects.filter(label=label)
+    random_videos = sample(list(videos), 10)
+    # 将选中的10个视频传递到模板中
+    context = {'videos': random_videos}
+    return render(request, 'template_name.html', context)
+def show_hot_videos(request):
+    videos = Video.objects.filter(reviewed_status=1).annotate(
+        hotness=Count('like') + F('play_amount') * 0.5
+    ).order_by('-hotness')[:6]
+    # 查询视频并按照得分排序
+    hot_videos = videos[:6]
+    return render(request, 'hot_videos.html', {'hot_videos': hot_videos})
 
 @csrf_exempt
 def upload_video(request):
-    if request.method == 'POST':
+    if request.method == 'POST'and request.path == '/upload_video/':
         # 获取上传的视频和封面文件
         video_file = request.FILES.get('video_file')
         cover_file = request.FILES.get('cover_file')
@@ -60,11 +76,11 @@ def upload_video(request):
         try:
             user_id = request.session['id']
         except:
-            user_id = 0
+            return JsonResponse({'errno': 2002, 'msg': "未登录！"})
 
         # 将视频信息保存到数据库
         video = Video.objects.create(
-            label=LABELS.index(label),
+            label=label,
             title=title,
             description=description,
             video_path=video_path,
@@ -78,7 +94,6 @@ def upload_video(request):
 
     return JsonResponse({'errno': 2001, 'msg': "请求方法不合法"})
 
-@csrf_exempt
 def manage_video(request):
     if request.method == 'GET':
         # 获取操作类型和视频ID
@@ -139,7 +154,7 @@ def play_video(request, video_id):
 
 @csrf_exempt
 def comment_video(request):
-    if request.method == 'POST':
+    if request.method == 'POST'and request.path == '/comment_video/':
         user_id = request.POST.get('user_id')
         video_id = request.POST.get('video_id')
         content = request.POST.get('content')
@@ -149,12 +164,10 @@ def comment_video(request):
             user = User.objects.get(id=user_id)
         except User.DoesNotExist:
             return JsonResponse({'errno': 4001, 'msg': '无效的用户ID'})
-        
         try:
             video = Video.objects.get(id=video_id)
         except Video.DoesNotExist:
             return JsonResponse({'errno': 4002, 'msg': '无效的视频ID'})
-        
         comment = Comment.objects.create(
             user=user,
             video=video,
@@ -168,7 +181,7 @@ def comment_video(request):
 
 @csrf_exempt
 def reply_comment(request):
-    if request.method == 'POST':
+    if request.method == 'POST'and request.path == '/reply_comment/':
         # 获取请求中传入的参数
         user_id = request.POST.get('user_id')
         comment_id = request.POST.get('comment_id')
@@ -182,7 +195,7 @@ def reply_comment(request):
 
 @csrf_exempt
 def likes_video(request):
-    if request.method == 'POST':
+    if request.method == 'POST'and request.path == '/likes_video/':
         # 获取请求中传入的参数
         user_id = request.POST.get('user_id')
         video_id = request.POST.get('video_id')
@@ -203,7 +216,7 @@ def likes_video(request):
 
 @csrf_exempt
 def collect_video(request):
-    if request.method == 'POST':
+    if request.method == 'POST'and request.path == '/collect_video/':
         user_id = request.POST.get('user_id')
         video_id = request.POST.get('video_id')
         try:
