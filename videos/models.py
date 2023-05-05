@@ -18,6 +18,7 @@ class Video(models.Model):
     reviewed_result=models.IntegerField('审核结果',default=0)
     reviewed_reason=models.CharField('审核原因',max_length=255)
     play_amount=models.IntegerField('播放量',default=0)
+    hotness=models.IntegerField('热度',default=0)
     class Meta:
         app_label = 'videos'
 
@@ -45,7 +46,7 @@ class Reply(models.Model):
     class Meta:
         app_label = 'videos'
 
-class Favorite(models.Model):
+class Collect(models.Model):
     user_id = models.IntegerField('收藏者ID'  )
     video_id = models.IntegerField('被收藏的视频ID'  )
     created_at = models.DateTimeField('收藏时间', auto_now_add=True)
