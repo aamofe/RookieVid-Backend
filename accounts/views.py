@@ -6,9 +6,10 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from django.core.mail import send_mail
 
-from accounts.models import User
+from accounts.models import User, Follow
 import re
 import random
+
 
 # Create your views here.
 
@@ -33,7 +34,8 @@ def send_mail_vcode(request):
         if (send_status == 1):
             resp = {'msg': '验证码已发送，请查阅'}
         else:
-            return JsonResponse({'from': EMAIL_FROM, 'to': to_email, 'errno': 1006, 'msg': "验证码发送失败，请检查邮箱地址"})
+            return JsonResponse(
+                {'from': EMAIL_FROM, 'to': to_email, 'errno': 1006, 'msg': "验证码发送失败，请检查邮箱地址"})
 
         # 存储验证码
         request.session['mail_code'] = code
@@ -81,7 +83,7 @@ def register(request):
             return JsonResponse({'errno': 1001, 'msg': "用户名不合法"})
         # 密码长度为8-16位，且同时包含数字和字母
         if re.match('(?!^[0-9]+$)(?!^[a-zA-Z]+$)[0-9A-Za-z]{8,16}', str(password_1)) is None:
-            return JsonResponse({'username':username, 'password': password_1, 'errno': 1002, 'msg': "密码格式错误"})
+            return JsonResponse({'username': username, 'password': password_1, 'errno': 1002, 'msg': "密码格式错误"})
         if password_1 != password_2:
             return JsonResponse({'errno': 1003, 'msg': "两次输入的密码不同"})
         else:
@@ -105,16 +107,16 @@ def login(request):
         password = request.POST.get('password')
         if User.objects.filter(uid=uid).exists() or User.objects.filter(email=uid):
             if re.match('[0-9]{10}', str(uid)):
-                user = User.objects.get(id=uid)
+                user = User.objects.get(uid=uid)
             elif re.match('\w+@\w+.\w+', str(uid)):
                 user = User.objects.get(email=uid)
         else:
-            return JsonResponse({'errno': 1001, 'msg': "请先注册"})
+            return JsonResponse({'errno': 1011, 'msg': "请先注册"})
         if user.password == password:  # 判断请求的密码是否与数据库存储的密码相同
-            request.session['id'] = user.id  # 密码正确则将用户名存储于session（django用于存储登录信息的数据库位置）
+            request.session['id'] = user.uid  # 密码正确则将用户名存储于session（django用于存储登录信息的数据库位置）
             return JsonResponse({'errno': 0, 'msg': "登录成功"})
         else:
-            return JsonResponse({'errno': 1002, 'msg': "密码错误"})
+            return JsonResponse({'errno': 1012, 'msg': "密码错误"})
     else:
         return render(request, 'login.html', {})
 
@@ -124,3 +126,114 @@ def logout(request):
     request.session.flush()
     return JsonResponse({'errno': 0, 'msg': "注销成功"})
 
+
+@csrf_exempt
+def display_profile(request):
+    # 如果用户已登录，展示用户信息
+    if request.session.get('id').exist():
+        uid = request.session.get('id')
+        user = User.objects.get(uid=uid)
+        context = {
+            'username': user.username,
+            'uid': user.uid,
+            'email': user.email,
+            'avatar_url': user.avatar_url
+        }
+        return render(request, 'profile.html', context=context)
+    # 若用户未登录，跳转到登录页面
+    else:
+        return render(request, 'login.html', {})
+
+
+@csrf_exempt
+def edit_profile(request):
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        email = request.POST.get('email')
+        avatar_url = request.POST.get('avatar_url')
+        uid = request.session.get('id')
+        user = User.objects.get(uid=uid)
+        # if email != user.email:
+        # 是否需要再次验证邮箱？
+        user.username = username
+        user.email = email
+        user.avatar_url = avatar_url
+        user.save()
+    else:
+        return render(request, 'edit_profile.html', {})
+
+
+@csrf_exempt
+def change_password(request):
+    if request.method == 'POST':
+        old_password = request.POST.get('old_password')
+        password_1 = request.POST.get('password_1')
+        password_2 = request.POST.get('password_2')
+        uid = request.session.get('id')
+        user = User.objects.get(uid=uid)
+        if old_password != user.password:
+            return JsonResponse({'errno': 1013, 'msg': "密码错误，请重新输入"})
+        if re.match('(?!^[0-9]+$)(?!^[a-zA-Z]+$)[0-9A-Za-z]{8,16}', str(password_1)) is None:
+            return JsonResponse({'password': password_1, 'errno': 1014, 'msg': "密码格式错误"})
+        if password_1 != password_2:
+            return JsonResponse({'errno': 1015, 'msg': "两次输入的密码不同"})
+        user.password = password_1
+        user.save()
+        return JsonResponse({'errno': 0, 'msg': "密码修改成功"})
+    else:
+        return JsonResponse({'errno': 1, 'msg': "请求方式错误"})
+
+
+@csrf_exempt
+def create_follow(request):
+    if request.method == 'POST':
+        following_id = request.POST.get('following_id')
+        follower_id = request.session.get('id')
+        now_time = time.time()
+        follow = Follow(follower_id=follower_id, following_id=following_id, created_at=now_time)
+        follow.save()
+        resp = {'follower': follower_id, 'following': following_id, 'errno': 0, 'msg': '关注成功'}
+        return JsonResponse(resp)
+    else:
+        return JsonResponse({'errno': 1, 'msg': "请求方式错误"})
+
+
+@csrf_exempt
+def remove_follow(request):
+    if request.method == 'POST':
+        following_id = request.POST.get('following_id')
+        follower_id = request.session.get('id')
+        follow = Follow.objects.get(follower_id=follower_id, following_id=following_id)
+        follow.delete()
+        resp = {'follower': follower_id, 'following': following_id, 'errno': 0, 'msg': '取关成功'}
+        return JsonResponse(resp)
+    else:
+        return JsonResponse({'errno': 1, 'msg': "请求方式错误"})
+
+
+@csrf_exempt
+def get_followings(request):
+    following_list = []
+    uid = request.session.get('id')
+    followings = Follow.objects.filter(follower_id=uid)
+    for following in followings:
+        following_data = {
+            'following_id': following.following_id,
+            'follow_time': following.created_at
+        }
+        following_list.append(following_data)
+    return JsonResponse({'errno': 0, 'msg': "关注列表查询成功", 'data': following_list})
+
+
+@csrf_exempt
+def get_followers(request):
+    follower_list = []
+    uid = request.session.get('id')
+    followers = Follow.objects.filter(following_id=uid)
+    for follower in followers:
+        follower_data = {
+            'following_id': follower.follower_id,
+            'follow_time': follower.created_at
+        }
+        follower_list.append(follower_data)
+    return JsonResponse({'errno': 0, 'msg': "粉丝列表查询成功", 'data': follower_list})

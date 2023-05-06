@@ -16,3 +16,5 @@ class Follow(models.Model):
     follower_id = models.IntegerField('粉丝ID'  )
     following_id = models.IntegerField('被关注者ID'  )
     created_at = models.DateTimeField('关注时间', auto_now_add=True)
+
+
