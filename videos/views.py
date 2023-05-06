@@ -51,12 +51,18 @@ def upload_video(request):
         label = request.POST.get('label')
         title = request.POST.get('title')
         description = request.POST.get('description')
-        video = Video.objects.filter(title=title)
-        if video.exists():
-            return JsonResponse({'errno': 2002, 'msg': "视频名称重复！"})
-
-        video_path = os.path.join(settings.VIDRO_URL, f'{title}.mp4')
-        cover_path = os.path.join(settings.COVER_URL, f'{title}.png')
+        # 将视频信息保存到数据库
+        video = Video.objects.create(
+            label=label,
+            title=title,
+            description=description,
+            video_path=video_path,
+            cover_path=cover_path,
+            user_id=user_id,
+            created_at=datetime.datetime.now()
+        )
+        video_path = os.path.join(settings.VIDRO_URL, f'{video.id}.mp4')
+        cover_path = os.path.join(settings.COVER_URL, f'{video.id}.png')
 
         with open(video_path, 'wb+') as f:
             for chunk in video_file.chunks():
@@ -71,16 +77,7 @@ def upload_video(request):
             user_id=1#测试用！！！
             #return JsonResponse({'errno': 2003, 'msg': "未登录！"})
 
-        # 将视频信息保存到数据库
-        video = Video.objects.create(
-            label=label,
-            title=title,
-            description=description,
-            video_path=video_path,
-            cover_path=cover_path,
-            user_id=user_id,
-            created_at=datetime.datetime.now()
-        )
+        
         video.save()
         #print('id ',video.id,'title ',video.title)
         return JsonResponse({'errno': 0, 'msg': "上传成功"})
