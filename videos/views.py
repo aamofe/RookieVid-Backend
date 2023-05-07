@@ -31,16 +31,27 @@ def get_video_by_label(request):
 
 def get_video_by_hotness(request):
     if request.method == 'GET':
-        videos = Video.objects.filter(reviewed_status=1).annotate(
-            hotness_score=Count('like') + F('play_amount') * 0.5
-        ).order_by('-hotness')[:6]
+        videos = Video.objects.filter(reviewed_result=1).annotate(
+            hotness_score=Count('likes') + F('play_amount') * 0.5
+        ).order_by('-hotness')
+
+        # 构建查询条件，包括热度为0的视频
+        zero_hotness_videos = Video.objects.filter(reviewed_result=1, hotness=0)
+
+        # 将两个查询合并，保留热度为0的视频并按热度排序
+        videos = videos | zero_hotness_videos
+
+        # 获取前6个视频
+        videos = videos[:6]
+
         # 使用序列化器将视频对象序列化为字典列表
-        serialized_videos = serializers.serialize('json', videos, fields=('id','title', 'description', 'cover_path','video_path','play_amount','like'))
-        
+        serialized_videos = serializers.serialize('json', videos, fields=('id', 'title', 'description', 'cover_path', 'video_path', 'play_amount', 'like'))
+
         # 将字典列表作为JSON响应返回
         return JsonResponse({'errno': 0, 'msg': "返回成功！", 'videos': serialized_videos}, safe=False)
     else:
         return JsonResponse({'errno': 2001, 'msg': "请求方法错误！"})
+
     
 @csrf_exempt
 def upload_video(request):
