@@ -9,7 +9,7 @@ from django.core.mail import send_mail
 from accounts.models import User, Follow, Vcode
 import re
 import random
-
+from django.utils import timezone
 
 # Create your views here.
 
@@ -21,33 +21,29 @@ def send_mail_vcode(request):
     if re.match('\w+@\w+.\w+', str(to_email)) is None:
         return JsonResponse({'errno': 1004, 'msg': "邮箱格式错误"})
     # 获取当前时间
-    now_time = time.time()
+    now_time = timezone.now()
     # 获取上次发送邮件的时间
-    mail_code_time = request.session.get('mail_code_time')
-    if mail_code_time and now_time < mail_code_time + 60:  # 1分钟内不能重复发送邮件
-        return JsonResponse({'errno': 1005, 'msg': "操作过于频繁，请稍后再试"})
-    else:
-        # 随机生成一个新的验证码
+    if Vcode.objects.filter(to_email=to_email).exists():
+        codes = Vcode.objects.filter(to_email=to_email)
+        for vcode in codes:
+            if (now_time - vcode.send_at).seconds < 60:  # 1分钟内不能重复发送邮件
+                return JsonResponse({'errno': 1005, 'msg': "操作过于频繁，请稍后再试"})
+    # 随机生成一个新的验证码
+    code = str(random.randint(10 ** 5, 10 ** 6 - 1))
+    while Vcode.objects.filter(vcode=code).exists():
         code = str(random.randint(10 ** 5, 10 ** 6 - 1))
-        while Vcode.objects.filter(vcode=code).exists():
-            code = str(random.randint(10 ** 5, 10 ** 6 - 1))
-        EMAIL_FROM = "1151801165@qq.com"  # 邮箱来自
-        email_title = '邮箱激活'
-        email_body = "您的邮箱注册验证码为：{}, 该验证码有效时间为5分钟，请及时进行验证。".format(code)
-        send_errno = send_mail(email_title, email_body, EMAIL_FROM, [to_email])
-        if send_errno == 1:
-            # 存储验证码
-            new_vcode = Vcode(vcode=code, to_email=to_email)
-            new_vcode.save()
-            resp = {'errno': 1000, 'msg': '验证码已发送，请查阅'}
-
-        else:
-            return JsonResponse(
-                {'from': EMAIL_FROM, 'to': to_email, 'errno': 1006, 'msg': "验证码发送失败，请检查邮箱地址"})
-
-        # 存储发送邮件时间
-        request.session['mail_code_time'] = time.time()
-    return JsonResponse(resp)
+    EMAIL_FROM = "1151801165@qq.com"  # 邮箱来自
+    email_title = '邮箱激活'
+    email_body = "您的邮箱注册验证码为：{}, 该验证码有效时间为5分钟，请及时进行验证。".format(code)
+    send_errno = send_mail(email_title, email_body, EMAIL_FROM, [to_email])
+    if send_errno == 1:
+        # 存储验证码
+        new_vcode = Vcode(vcode=code, to_email=to_email)
+        new_vcode.save()
+        return JsonResponse({'errno': 1000, 'msg': '验证码已发送，请查阅'})
+    else:
+        return JsonResponse(
+            {'from': EMAIL_FROM, 'to': to_email, 'errno': 1006, 'msg': "验证码发送失败，请检查邮箱地址"})
 
 
 # 先验证验证码是否正确，若正确检验用户名密码是否合法，完成注册
@@ -59,22 +55,27 @@ def register(request):
         vcode = request.POST.get('vcode')
 
         # 判断验证码是否失效
-        now_time = time.time()
+        now_time = timezone.now()
         # 获取发送验证码时间
-        session_code_time = request.session.get('mail_code_time')
-        if session_code_time and now_time <= session_code_time + 300:
-            # 检测验证码是否存在于数据库中
-            if Vcode.objects.filter(vcode=vcode).exists():
-                code = Vcode.objects.get(vcode=vcode)
-                if code.to_email != email:
-                    return JsonResponse({'errno': 1009, 'msg': '该账户没有获取验证码'})
-                else:
-                    # 从数据库中删除该验证码
+        flag = 0
+        if Vcode.objects.filter(to_email=email).exists():
+            codes = Vcode.objects.filter(to_email=email)
+            for code in codes:
+                if (now_time - code.send_at).seconds <= 300:  # 5分钟有效
+                    flag = 1
+                    break
+            if flag == 0:
+                for code in codes:
                     code.delete()
+                return JsonResponse({'errno': 1008, 'msg': '验证码失效，请重新获取'})
             else:
-                return JsonResponse({'errno': 1007, 'msg': '验证码错误'})
+                if Vcode.objects.filter(vcode=vcode).exists() and Vcode.objects.get(vcode=vcode).to_email == email:
+                    Vcode.objects.get(vcode=vcode).delete()
+                else:
+                    code = Vcode.objects.get(vcode=vcode).vcode
+                    return JsonResponse({'errno': 1007, 'msg': '验证码错误', 'vcode': code})
         else:
-            return JsonResponse({'errno': 1008, 'msg': '验证码失效，请重新获取'})
+            return JsonResponse({'errno': 1009, 'msg': '该账户没有获取验证码'})
 
         # 验证码正确，进行注册
         username = request.POST.get('username')  # 获取请求数据

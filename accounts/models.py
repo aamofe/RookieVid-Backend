@@ -1,3 +1,5 @@
+import datetime
+
 from django.db import models
 
 
@@ -21,4 +23,5 @@ class Follow(models.Model):
 class Vcode(models.Model):
     vcode = models.CharField('验证码', max_length=6)
     to_email = models.CharField('邮箱', max_length=20)
-    # code_time = models.DateTimeField('发送时间')
+    # code_time = models.DateTimeField('发送时间', auto_now_add=True)
+    send_at = models.DateTimeField('发送时间', auto_now_add=True)
