@@ -4,19 +4,44 @@ from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from storages.backends.sftpstorage import SFTPStorage
-from django.db.models import Q
+from django.db.models import Q, Count, F
 import videos
 from RookieVid_Backend import settings
 from django.db.models import Max
 import paramiko
+from django.core import serializers
+from accounts.models import User
+from videos.models import Video, Like, Comment, Reply, Collect
 
-from videos.models import Video
-
+from random import sample
 
 # 视频分类标签
 LABELS = ['娱乐', '军事', '生活', '音乐', '学习', '科技', '运动', '游戏', '影视', '美食']
 
+def get_video_by_label(request):
+    if request.method == 'GET' :
+        label=request.GET.get('label')
+        videos = Video.objects.filter(label=label)
+        random_videos = sample(list(videos), 10)
+        serialized_videos = serializers.serialize('json',random_videos, fields=('id','title', 'description', 'cover_path','video_path','play_amount','like'))
+        return JsonResponse({'errno':0, 'msg': "返回成功！",'videos': serialized_videos},safe=False)
+    else:
+        return JsonResponse({'errno': 2001, 'msg': "请求方法错误！"})
+    
 
+def get_video_by_hotness(request):
+    if request.method == 'GET':
+        videos = Video.objects.filter(reviewed_status=1).annotate(
+            hotness_score=Count('like') + F('play_amount') * 0.5
+        ).order_by('-hotness')[:6]
+        # 使用序列化器将视频对象序列化为字典列表
+        serialized_videos = serializers.serialize('json', videos, fields=('id','title', 'description', 'cover_path','video_path','play_amount','like'))
+        
+        # 将字典列表作为JSON响应返回
+        return JsonResponse({'errno': 0, 'msg': "返回成功！", 'videos': serialized_videos}, safe=False)
+    else:
+        return JsonResponse({'errno': 2001, 'msg': "请求方法错误！"})
+    
 @csrf_exempt
 def upload_video(request):
     if request.method == 'POST':
@@ -26,29 +51,18 @@ def upload_video(request):
         label = request.POST.get('label')
         title = request.POST.get('title')
         description = request.POST.get('description')
-        max_id = Video.objects.all().aggregate(Max('id'))['id__max']
-        video_id = max_id + 1 if max_id else 1
-        
-        # # 将视频和封面文件上传到云服务器
-        # video_storage = SFTPStorage()
-        # cover_storage = SFTPStorage()
-        # video_storage.location = 'data/video_file/'
-        # cover_storage.location = 'data/video_cover/'
-        # print("video_storage : ",video_storage)
-        # print("cover_storage_storage : ",cover_storage)
-        # print("video_storage.location : ",video_storage.location)
-        # print("cover_storage.location : ",cover_storage.location)
-        # #save() 方法的参数是 Django 的 File 对象
-        # #upload() 方法的参数是本地文件路径
-        # video_path = video_storage.save(f'{video_id}_{title}.mp4', video_file)
-        # cover_path = cover_storage.save(f'{video_id}_{title}.png', cover_file)
-        # print("video_path : ",video_path)
-        # print("cover_path : ",cover_path)
-        # video_storage.close()
-        # cover_storage.close()
-
-        video_path = os.path.join(settings.VIDRO_URL, f'{video_id}_{title}.mp4')
-        cover_path = os.path.join(settings.COVER_URL, f'{video_id}_{title}.png')
+        # 将视频信息保存到数据库
+        video = Video.objects.create(
+            label=label,
+            title=title,
+            description=description,
+            video_path=video_path,
+            cover_path=cover_path,
+            user_id=user_id,
+            created_at=datetime.datetime.now()
+        )
+        video_path = os.path.join(settings.VIDRO_URL, f'{video.id}.mp4')
+        cover_path = os.path.join(settings.COVER_URL, f'{video.id}.png')
 
         with open(video_path, 'wb+') as f:
             for chunk in video_file.chunks():
@@ -60,25 +74,16 @@ def upload_video(request):
         try:
             user_id = request.session['id']
         except:
-            user_id = 0
+            user_id=1#测试用！！！
+            #return JsonResponse({'errno': 2003, 'msg': "未登录！"})
 
-        # 将视频信息保存到数据库
-        video = Video.objects.create(
-            label=LABELS.index(label),
-            title=title,
-            description=description,
-            video_path=video_path,
-            cover_path=cover_path,
-            user_id=user_id,
-            created_at=datetime.datetime.now()
-        )
+        
         video.save()
-
+        #print('id ',video.id,'title ',video.title)
         return JsonResponse({'errno': 0, 'msg': "上传成功"})
+    else:
+        return JsonResponse({'errno': 2001, 'msg': "请求方法错误！"})
 
-    return JsonResponse({'errno': 2001, 'msg': "请求方法不合法"})
-
-@csrf_exempt
 def manage_video(request):
     if request.method == 'GET':
         # 获取操作类型和视频ID
@@ -92,79 +97,69 @@ def manage_video(request):
                 video.delete()
                 return JsonResponse({'errno': 0, 'msg': '删除成功'})
             except Video.DoesNotExist:
-                return JsonResponse({'errno': 4001, 'msg': '视频不存在'})
+                return JsonResponse({'errno': 2004, 'msg': '视频不存在'})
         else:
-            return JsonResponse({'errno': 4002, 'msg': '操作不合法'})
+            return JsonResponse({'errno': 2005, 'msg': '操作不合法'})
     else:
         return JsonResponse({'errno': 2001, 'msg': '请求方法不合法'})
 
 def search_video(request):
-    keyword = request.GET.get('keyword')
+    if request.method=='GET':
+        keyword = request.GET.get('keyword')
+        if not keyword:
+            return JsonResponse({'errno': 2006, 'msg': '关键字不能为空'})
+        # 使用 Q 对象进行模糊查询
+        query = Q(title__icontains=keyword) | Q(description__icontains=keyword)
+        videos = Video.objects.filter(query)
+        serialized_videos = serializers.serialize('json', videos, fields=('id','title', 'description', 'cover_path','video_path','play_amount','like'))
+        # 将字典列表作为JSON响应返回
+        return JsonResponse({'errno': 0, 'msg': "返回成功！", 'videos': serialized_videos}, safe=False)
+    else:
+        return JsonResponse({'errno': 2002, 'msg': "请求方法错误！"})
 
-    if not keyword:
-        return JsonResponse({'errno': 4001, 'msg': '关键字不能为空'})
-
-    # 使用 Q 对象进行模糊查询
-    query = Q(title__icontains=keyword) | Q(description__icontains=keyword)
-    videos = Video.objects.filter(query)
-
-    # 构造返回的视频列表数据
-    video_list = []
-    for video in videos:
-        video_data = {
-            'id': video.id,
-            'title': video.title,
-            'description': video.description,
-            'cover_url': video.get_cover_url(),
-        }
-        video_list.append(video_data)
-
-    return JsonResponse({'errno': 0, 'msg': '查询成功', 'data': video_list})
-
-def play_video(request, video_id):
-    try:
-        video = Video.objects.get(id=video_id)
-    except Video.DoesNotExist:
-        return JsonResponse({'error': '视频不存在'})
-    
-    response_data = {
-        'id': video.id,
-        'title': video.title,
-        'description': video.description,
-        'cover_url': video.cover_path.url,
-        'video_url': video.video_path.url,
-    }
-    
-    return JsonResponse(response_data)
+def play_video(request):
+    if request.method=='GET':
+        #这里可能需要把 不只是根据id获取视频，还有其他方式
+        video_id=request.GET.get('video_id')
+        try:
+            video = Video.objects.get(id=video_id)
+        except Video.DoesNotExist:
+            return JsonResponse({'errno': 2004, 'msg': '视频不存在'})
+        serialized_videos = serializers.serialize('json',[video] , fields=('id','title', 'description', 'cover_path','video_path','play_amount','like'))
+        # 将字典列表作为JSON响应返回
+        return JsonResponse({'errno': 0, 'msg': "返回成功！", 'videos': serialized_videos}, safe=False)
+    else:
+        return JsonResponse({'errno': 2001, 'msg': "请求方法错误！"})
 
 @csrf_exempt
 def comment_video(request):
     if request.method == 'POST':
-        user_id = request.POST.get('user_id')
+        try :
+            user_id = request.session['id']
+        except:
+            user_id=1 #测试用！！！
+            #return JsonResponse({'errno': 2003, 'msg': "未登录！"})
         video_id = request.POST.get('video_id')
         content = request.POST.get('content')
         created_at = datetime.now()
-        
         try:
             user = User.objects.get(id=user_id)
         except User.DoesNotExist:
-            return JsonResponse({'errno': 4001, 'msg': '无效的用户ID'})
-        
+            return JsonResponse({'errno': 2007, 'msg': '用户不存在'})
         try:
             video = Video.objects.get(id=video_id)
         except Video.DoesNotExist:
-            return JsonResponse({'errno': 4002, 'msg': '无效的视频ID'})
-        
+            return JsonResponse({'errno': 2004, 'msg': '视频不存在'})
         comment = Comment.objects.create(
             user=user,
             video=video,
             content=content,
             created_at=created_at
         )
-        
+        comment.save()
         return JsonResponse({'errno': 0, 'msg': '评论成功'})
-    
-    return JsonResponse({'errno': 2001, 'msg': '请求方法不合法'})
+    else:
+        return JsonResponse({'errno': 2001, 'msg': "请求方法错误！"})
 
 @csrf_exempt
 def reply_comment(request):
@@ -177,8 +172,9 @@ def reply_comment(request):
         reply = Reply(user_id=user_id, comment_id=comment_id, content=content)
         reply.save()
         # 构造返回给前端的数据
-        response_data = {'errno': 0, 'errmsg': 'success'}
-        return JsonResponse(response_data)
+        return JsonResponse({'errno': 0, 'errmsg': 'success'})
+    else:
+        return JsonResponse({'errno': 2001, 'msg': "请求方法错误！"})
 
 @csrf_exempt
 def likes_video(request):
@@ -198,8 +194,8 @@ def likes_video(request):
             like = Like(user_id=user_id, video_id=video_id)
             like.save()
             data = {'status': 'success', 'action': 'like'}
-        
-        return JsonResponse(data)
+    else:
+        return JsonResponse({'errno': 2001, 'msg': "请求方法错误！"})
 
 @csrf_exempt
 def collect_video(request):
@@ -220,5 +216,4 @@ def collect_video(request):
             data = {'status': 'success', 'msg': '收藏成功'}
             return JsonResponse(data)
     else:
-        data = {'errno': 2001, 'msg': '请求方法不合法'}
-        return JsonResponse(data)
+        return JsonResponse({'errno': 2001, 'msg': "请求方法错误！"})

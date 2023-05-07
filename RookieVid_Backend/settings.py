@@ -26,7 +26,7 @@ SECRET_KEY = "django-insecure-t=v6(0-5o4yt_3kskc1^o9ios59wlgcn)98b@u15%&h#)(h7fg
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS=['*']
+
 
 # Application definition
 
@@ -34,6 +34,8 @@ INSTALLED_APPS = [
     "accounts",
     "videos",
     "notifications",
+    "corsheaders",  # 跨域请求
+    "super_admin",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -43,14 +45,45 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
+    "django.middleware.common.CommonMiddleware",
+
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
-    "django.middleware.common.CommonMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",
+    
+    #"django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+ALLOWED_HOSTS=['*']
+# 跨域增加忽略
+CORS_ALLOW_CREDENTIALS = True
+CORS_ORIGIN_ALLOW_ALL = True
+
+CORS_ALLOW_METHODS = (
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+    'VIEW',
+)
+
+CORS_ALLOW_HEADERS = (
+    'XMLHttpRequest',
+    'X_FILENAME',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+    'Pragma',
+)
 
 ROOT_URLCONF = "RookieVid_Backend.urls"
 
@@ -144,16 +177,7 @@ email_title = '邮箱验证'
 
 DEFAULT_FILE_STORAGE = 'storages.backends.sftpstorage.SFTPStorage'
 
-# SFTP 存储后端的配置
-SFTP_STORAGE_HOST = '101.43.159.45'
-SFTP_STORAGE_ROOT = '/home/aamofe/data/'
-SFTP_STORAGE_PARAMS = {
-    'username': 'aamofe',
-    'password': 'aamofe12@',
-}
-SFTP_STORAGE_SECURE = False
-SFTP_STORAGE_ROOT_URL = 'http://101.43.159.45/'
 
 MEDIA_ROOT = '/home/aamofe/data'
 VIDRO_URL = os.path.join(MEDIA_ROOT, 'video_file')
-COVER_URL = os.path.join(MEDIA_ROOT,"video_cover")
+COVER_URL = os.path.join(MEDIA_ROOT, 'cover_file')

@@ -3,7 +3,7 @@ from django.db import models
 # Create your models here.
 class Video(models.Model):
     label=models.CharField("标签",default="娱乐",max_length=255)
-    title=models.CharField('视频标题',max_length=20)
+    title=models.CharField('视频标题',max_length=255)
     description=models.CharField('视频描述',max_length=255)
     video_path = models.CharField('视频地址',null=True,max_length=255)
     cover_path=models.CharField('封面地址',null=True,max_length=255)
@@ -18,6 +18,8 @@ class Video(models.Model):
     reviewed_result=models.IntegerField('审核结果',default=0)
     reviewed_reason=models.CharField('审核原因',max_length=255)
     play_amount=models.IntegerField('播放量',default=0)
+    hotness=models.IntegerField('热度',default=0)
+    like=models.IntegerField('点赞数',default=0)
     class Meta:
         app_label = 'videos'
 
@@ -45,7 +47,7 @@ class Reply(models.Model):
     class Meta:
         app_label = 'videos'
 
-class Favorite(models.Model):
+class Collect(models.Model):
     user_id = models.IntegerField('收藏者ID'  )
     video_id = models.IntegerField('被收藏的视频ID'  )
     created_at = models.DateTimeField('收藏时间', auto_now_add=True)

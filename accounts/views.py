@@ -17,6 +17,7 @@ import random
 @csrf_exempt
 def send_mail_vcode(request):
     to_email = request.POST.get("email")
+    print("to_email : ",to_email)
     if re.match('\w+@\w+.\w+', str(to_email)) is None:
         return JsonResponse({'errno': 1004, 'msg': "邮箱格式错误"})
     # 获取当前时间
@@ -30,9 +31,10 @@ def send_mail_vcode(request):
         EMAIL_FROM = "1151801165@qq.com"  # 邮箱来自
         email_title = '邮箱激活'
         email_body = "您的邮箱注册验证码为：{}, 该验证码有效时间为5分钟，请及时进行验证。".format(code)
-        send_status = send_mail(email_title, email_body, EMAIL_FROM, [to_email])
-        if (send_status == 1):
-            resp = {'msg': '验证码已发送，请查阅'}
+        send_errno = send_mail(email_title, email_body, EMAIL_FROM, [to_email])
+        if (send_errno == 1):
+            resp = {'errno': 1000,'msg': '验证码已发送，请查阅'}
+            
         else:
             return JsonResponse(
                 {'from': EMAIL_FROM, 'to': to_email, 'errno': 1006, 'msg': "验证码发送失败，请检查邮箱地址"})
@@ -56,6 +58,7 @@ def register(request):
         session_email = request.session.get('mail')
         session_code = request.session.get('mail_code')
         # 判断发送用户是否一致
+        print("前端来的验证码 : ",vcode,"后端的验证码 : ",session_code)
         if session_email and session_email == email:
             # 判断验证码是否失效
             now_time = time.time()
