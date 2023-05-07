@@ -6,7 +6,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from django.core.mail import send_mail
 
-from accounts.models import User, Follow
+from accounts.models import User, Follow, Vcode
 import re
 import random
 
@@ -17,7 +17,7 @@ import random
 @csrf_exempt
 def send_mail_vcode(request):
     to_email = request.POST.get("email")
-    print("to_email : ",to_email)
+    print("to_email : ", to_email)
     if re.match('\w+@\w+.\w+', str(to_email)) is None:
         return JsonResponse({'errno': 1004, 'msg': "邮箱格式错误"})
     # 获取当前时间
@@ -27,21 +27,24 @@ def send_mail_vcode(request):
     if mail_code_time and now_time < mail_code_time + 60:  # 1分钟内不能重复发送邮件
         return JsonResponse({'errno': 1005, 'msg': "操作过于频繁，请稍后再试"})
     else:
-        code = '%06d' % random.randint(0, 999999)
+        # 随机生成一个新的验证码
+        code = str(random.randint(10 ** 5, 10 ** 6 - 1))
+        while Vcode.objects.filter(vcode=code).exists():
+            code = str(random.randint(10 ** 5, 10 ** 6 - 1))
         EMAIL_FROM = "1151801165@qq.com"  # 邮箱来自
         email_title = '邮箱激活'
         email_body = "您的邮箱注册验证码为：{}, 该验证码有效时间为5分钟，请及时进行验证。".format(code)
         send_errno = send_mail(email_title, email_body, EMAIL_FROM, [to_email])
-        if (send_errno == 1):
-            resp = {'errno': 1000,'msg': '验证码已发送，请查阅'}
-            
+        if send_errno == 1:
+            # 存储验证码
+            new_vcode = Vcode(vcode=code, to_email=to_email)
+            new_vcode.save()
+            resp = {'errno': 1000, 'msg': '验证码已发送，请查阅'}
+
         else:
             return JsonResponse(
                 {'from': EMAIL_FROM, 'to': to_email, 'errno': 1006, 'msg': "验证码发送失败，请检查邮箱地址"})
 
-        # 存储验证码
-        request.session['mail_code'] = code
-        request.session['mail'] = to_email
         # 存储发送邮件时间
         request.session['mail_code_time'] = time.time()
     return JsonResponse(resp)
@@ -54,26 +57,25 @@ def register(request):
         # 获取输入的验证码和邮箱
         email = request.POST.get('email')
         vcode = request.POST.get('vcode')
-        # 从session中获取邮箱和验证码
-        session_email = request.session.get('mail')
-        session_code = request.session.get('mail_code')
-        # 判断发送用户是否一致
-        print("前端来的验证码 : ",vcode,"后端的验证码 : ",session_code)
-        if session_email and session_email == email:
-            # 判断验证码是否失效
-            now_time = time.time()
-            # 获取发送验证码时间
-            session_code_time = request.session.get('mail_code_time')
-            if session_code_time and now_time <= session_code_time + 300:
-                # 验证验证码输入
-                if session_code and session_code == vcode:
-                    resp = {'msg': '验证码正确'}
+
+        # 判断验证码是否失效
+        now_time = time.time()
+        # 获取发送验证码时间
+        session_code_time = request.session.get('mail_code_time')
+        if session_code_time and now_time <= session_code_time + 300:
+            # 检测验证码是否存在于数据库中
+            if Vcode.objects.filter(vcode=vcode).exists():
+                code = Vcode.objects.get(vcode=vcode)
+                if code.to_email != email:
+                    return JsonResponse({'errno': 1009, 'msg': '该账户没有获取验证码'})
                 else:
-                    return JsonResponse({'errno': 1007, 'msg': '验证码错误'})
+                    # 从数据库中删除该验证码
+                    code.delete()
             else:
-                return JsonResponse({'errno': 1008, 'msg': '验证码失效，请重新获取'})
+                return JsonResponse({'errno': 1007, 'msg': '验证码错误'})
         else:
-            return JsonResponse({'errno': 1009, 'msg': '该账户没有获取验证码'})
+            return JsonResponse({'errno': 1008, 'msg': '验证码失效，请重新获取'})
+
         # 验证码正确，进行注册
         username = request.POST.get('username')  # 获取请求数据
         password_1 = request.POST.get('password_1')
@@ -116,7 +118,7 @@ def login(request):
             return JsonResponse({'errno': 1011, 'msg': "请先注册"})
         if user.password == password:  # 判断请求的密码是否与数据库存储的密码相同
             request.session['id'] = user.uid  # 密码正确则将用户名存储于session（django用于存储登录信息的数据库位置）
-            return JsonResponse({'errno': 0, 'msg': "登录成功"})
+            return JsonResponse({'uid': user.uid, 'errno': 0, 'msg': "登录成功"})
         else:
             return JsonResponse({'errno': 1012, 'msg': "密码错误"})
     else:
