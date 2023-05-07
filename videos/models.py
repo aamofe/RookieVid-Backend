@@ -19,7 +19,7 @@ class Video(models.Model):
     reviewed_reason=models.CharField('审核原因',max_length=255)
     play_amount=models.IntegerField('播放量',default=0)
     hotness=models.IntegerField('热度',default=0)
-    like=models.IntegerField('点赞数',default=0)
+    likes=models.IntegerField('点赞数',default=0)
     class Meta:
         app_label = 'videos'
 

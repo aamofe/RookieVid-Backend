@@ -74,6 +74,7 @@ def register(request):
             else:
                 return JsonResponse({'errno': 1007, 'msg': '验证码错误'})
         else:
+            print("存储时间 ： ",session_code_time," 现在时间 : ",now_time)
             return JsonResponse({'errno': 1008, 'msg': '验证码失效，请重新获取'})
 
         # 验证码正确，进行注册
