@@ -4,8 +4,9 @@ from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from storages.backends.sftpstorage import SFTPStorage
-from django.db.models import Q, Count, F
+from django.db.models import Q, Count, Count, F, ExpressionWrapper
 import videos
+from django.db import models
 from RookieVid_Backend import settings
 from django.db.models import Max
 import paramiko
@@ -21,34 +22,42 @@ LABELS = ['娱乐', '军事', '生活', '音乐', '学习', '科技', '运动', 
 def get_video_by_label(request):
     if request.method == 'GET' :
         label=request.GET.get('label')
+        if label not in LABELS:
+            return JsonResponse({'errno': 2011, 'msg': "标签错误！"})
         videos = Video.objects.filter(label=label)
-        random_videos = sample(list(videos), 10)
-        serialized_videos = serializers.serialize('json',random_videos, fields=('id','title', 'description', 'cover_path','video_path','play_amount','like'))
-        return JsonResponse({'errno':0, 'msg': "返回成功！",'videos': serialized_videos},safe=False)
+        random_videos = sample(list(videos), min(10,sum(videos)))
+        video_list = []
+        for video in random_videos:
+            video_dict =video.to_dict()
+            print("video_url : ",video_dict.get('url'))
+            video_list.append(video_dict)
+
+        return JsonResponse({'errno': 0, 'msg': "返回成功！", 'videos': video_list}, safe=False)
     else:
         return JsonResponse({'errno': 2001, 'msg': "请求方法错误！"})
     
 
 def get_video_by_hotness(request):
     if request.method == 'GET':
-        videos = Video.objects.filter(reviewed_result=1).annotate(
-            hotness_score=Count('likes') + F('play_amount') * 0.5
-        ).order_by('-hotness')
-
-        # 构建查询条件，包括热度为0的视频
-        zero_hotness_videos = Video.objects.filter(reviewed_result=1, hotness=0)
-
-        # 将两个查询合并，保留热度为0的视频并按热度排序
-        videos = videos | zero_hotness_videos
-
+        # 构建热度计算表达式
+        hotness_expression = ExpressionWrapper(
+            Count('like_amount') + F('view_amount') * 0.5,
+            output_field=models.FloatField()
+        )
+        # 获取符合条件的视频，并按热度计算排序
+        videos = Video.objects.filter(reviewed_status=1).annotate(
+            hotness_score=hotness_expression
+        ).order_by('-hotness_score', '-like_amount', '-view_amount', 'id')
         # 获取前6个视频
         videos = videos[:6]
+        #print("数量 : ",)
+        video_list = []
+        for video in videos:
+            video_dict = video.to_dict()
+            #print("video_url: ", video_dict.get('video_url'))
+            video_list.append(video_dict)
 
-        # 使用序列化器将视频对象序列化为字典列表
-        serialized_videos = serializers.serialize('json', videos, fields=('id', 'title', 'description', 'cover_path', 'video_path', 'play_amount', 'like'))
-
-        # 将字典列表作为JSON响应返回
-        return JsonResponse({'errno': 0, 'msg': "返回成功！", 'videos': serialized_videos}, safe=False)
+        return JsonResponse({'errno': 0, 'msg': "返回成功！", 'videos': video_list}, safe=False)
     else:
         return JsonResponse({'errno': 2001, 'msg': "请求方法错误！"})
 
@@ -57,23 +66,25 @@ def get_video_by_hotness(request):
 def upload_video(request):
     if request.method == 'POST':
         # 获取上传的视频和封面文件
+        user_id=1
         video_file = request.FILES.get('video_file')
         cover_file = request.FILES.get('cover_file')
         label = request.POST.get('label')
         title = request.POST.get('title')
         description = request.POST.get('description')
+        #print('video_file : ',video_file,'label : ',label)
         # 将视频信息保存到数据库
         video = Video.objects.create(
             label=label,
             title=title,
             description=description,
-            video_path=video_path,
-            cover_path=cover_path,
             user_id=user_id,
             created_at=datetime.datetime.now()
         )
         video_path = os.path.join(settings.VIDRO_URL, f'{video.id}.mp4')
         cover_path = os.path.join(settings.COVER_URL, f'{video.id}.png')
+        video.video_path=video_path
+        video.cover_path=cover_path
 
         with open(video_path, 'wb+') as f:
             for chunk in video_file.chunks():
@@ -82,15 +93,7 @@ def upload_video(request):
         with open(cover_path, 'wb+') as f:
             for chunk in cover_file.chunks():
                 f.write(chunk)
-        try:
-            user_id = request.session['id']
-        except:
-            user_id=1#测试用！！！
-            #return JsonResponse({'errno': 2003, 'msg': "未登录！"})
-
-        
         video.save()
-        #print('id ',video.id,'title ',video.title)
         return JsonResponse({'errno': 0, 'msg': "上传成功"})
     else:
         return JsonResponse({'errno': 2001, 'msg': "请求方法错误！"})
@@ -122,13 +125,13 @@ def search_video(request):
         # 使用 Q 对象进行模糊查询
         query = Q(title__icontains=keyword) | Q(description__icontains=keyword)
         videos = Video.objects.filter(query)
-        serialized_videos = serializers.serialize('json', videos, fields=('id','title', 'description', 'cover_path','video_path','play_amount','like'))
+        serialized_videos = serializers.serialize('json', videos, fields=('id','title', 'description', 'cover_path','video_path','view_amount','like'))
         # 将字典列表作为JSON响应返回
         return JsonResponse({'errno': 0, 'msg': "返回成功！", 'videos': serialized_videos}, safe=False)
     else:
         return JsonResponse({'errno': 2002, 'msg': "请求方法错误！"})
 
-def play_video(request):
+def view_video(request):
     if request.method=='GET':
         #这里可能需要把 不只是根据id获取视频，还有其他方式
         video_id=request.GET.get('video_id')
@@ -136,7 +139,7 @@ def play_video(request):
             video = Video.objects.get(id=video_id)
         except Video.DoesNotExist:
             return JsonResponse({'errno': 2004, 'msg': '视频不存在'})
-        serialized_videos = serializers.serialize('json',[video] , fields=('id','title', 'description', 'cover_path','video_path','play_amount','like'))
+        serialized_videos = serializers.serialize('json',[video] , fields=('id','title', 'description', 'cover_path','video_path','view_amount','like'))
         # 将字典列表作为JSON响应返回
         return JsonResponse({'errno': 0, 'msg': "返回成功！", 'videos': serialized_videos}, safe=False)
     else:
@@ -188,7 +191,7 @@ def reply_comment(request):
         return JsonResponse({'errno': 2001, 'msg': "请求方法错误！"})
 
 @csrf_exempt
-def likes_video(request):
+def like_video(request):
     if request.method == 'POST':
         # 获取请求中传入的参数
         user_id = request.POST.get('user_id')
@@ -208,23 +211,3 @@ def likes_video(request):
     else:
         return JsonResponse({'errno': 2001, 'msg': "请求方法错误！"})
 
-@csrf_exempt
-def collect_video(request):
-    if request.method == 'POST':
-        user_id = request.POST.get('user_id')
-        video_id = request.POST.get('video_id')
-        try:
-        # 检查用户是否已经收藏该视频
-            existed_collect = Collect.objects.get(user_id=user_id, video_id=video_id)
-            # 如果已经收藏，删除收藏
-            existed_collect.delete()
-            data = {'status': 'success', 'msg': '取消收藏成功'}
-            return JsonResponse(data)
-        except Collect.DoesNotExist:
-        # 如果未收藏，创建收藏
-            collect = Collect(user_id=user_id, video_id=video_id)
-            collect.save()
-            data = {'status': 'success', 'msg': '收藏成功'}
-            return JsonResponse(data)
-    else:
-        return JsonResponse({'errno': 2001, 'msg': "请求方法错误！"})
