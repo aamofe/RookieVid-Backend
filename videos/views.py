@@ -12,7 +12,7 @@ from django.db.models import Max
 import paramiko
 from django.core import serializers
 from accounts.models import User
-from videos.models import Video, Like, Comment, Reply, Collect
+from videos.models import Video, Like, Comment, Reply
 
 from random import sample
 

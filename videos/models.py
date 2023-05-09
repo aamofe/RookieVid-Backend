@@ -78,7 +78,3 @@ class Favlist(models.Model):
     favorite_id = models.IntegerField(verbose_name='收藏夹编号', default=0)
     video = models.ForeignKey(Video, verbose_name='', on_delete=models.CASCADE)
 
-class Collect(models.Model):
-    user_id = models.IntegerField(verbose_name='收藏者ID',null=True  )
-    video_id = models.IntegerField(verbose_name='被收藏的视频ID' ,null=True )
-    created_at = models.DateTimeField(verbose_name='收藏时间', auto_now_add=True)
