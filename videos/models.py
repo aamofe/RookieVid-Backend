@@ -1,53 +1,80 @@
+import os
 from django.db import models
+
+from accounts.models import User
 
 # Create your models here.
 class Video(models.Model):
-    label=models.CharField("标签",default="娱乐",max_length=255)
-    title=models.CharField('视频标题',max_length=255)
-    description=models.CharField('视频描述',max_length=255)
-    video_path = models.CharField('视频地址',null=True,max_length=255)
-    cover_path=models.CharField('封面地址',null=True,max_length=255)
+    label=models.CharField(verbose_name="标签",default="娱乐",max_length=255)
+    title=models.CharField(verbose_name='视频标题',max_length=255)
+    description=models.CharField(verbose_name='视频描述',max_length=255)
+    video_path = models.CharField(verbose_name='视频地址',null=True,max_length=255)
+    cover_path=models.CharField(verbose_name='封面地址',null=True,max_length=255)
     # video_file = models.FileField(upload_to='video_file/',null=True)
     # video_cover=models.FileField(upload_to='video_cover',null=True)
     
-    # thumbnail_url=models.CharField('视频略缩图地址',max_length=255)
-    user_id=models.IntegerField('视频创建者ID' )
-    created_at=models.DateTimeField('创建时间',auto_now_add=True)
-    reviewed_at=models.DateTimeField('审核时间',null=True)
-    reviewed_status=models.IntegerField('审核状态',default=0)
-    reviewed_result=models.IntegerField('审核结果',default=0)
-    reviewed_reason=models.CharField('审核原因',max_length=255)
-    play_amount=models.IntegerField('播放量',default=0)
-    hotness=models.IntegerField('热度',default=0)
-    like=models.IntegerField('点赞数',default=0)
+    # thumbnail_url=models.CharField(verbose_name='视频略缩图地址',max_length=255)
+    user_id=models.IntegerField(verbose_name='所属用户',null=True)
+    created_at=models.DateTimeField(verbose_name='创建时间',auto_now_add=True)
+    reviewed_at=models.DateTimeField(verbose_name='审核时间',null=True)
+    reviewed_status=models.IntegerField(verbose_name='审核状态',default=0) #0未审核 1审核通过 2需复核
+
+    view_amount=models.IntegerField(verbose_name='播放量',default=0)
+    fav_amount=models.IntegerField(verbose_name='收藏量',default=0)
+    like_amount=models.IntegerField(verbose_name='点赞数',default=0)
+    class Meta:
+        app_label = 'videos'
+    def to_dict(self):
+        return {
+            'id':self.id,
+            'label':self.label,
+            'title':self.title,
+            'description':self.description,
+            'video_url': 'http://101.43.159.45' + self.video_path,
+            'cover_url': 'http://101.43.159.45' + self.cover_path,
+            'user':self.user_id,
+            'created_at':self.created_at,
+            'reviewed_at':self.reviewed_at,
+            'reviewed_status':self.reviewed_status,
+            'view_amount':self.view_amount,
+            'fav_amount':self.fav_amount,
+            'like_amount':self.like_amount,
+        }
+    
+class Like(models.Model):
+    user_id=models.IntegerField(verbose_name='点赞者ID',null=True )
+    video_id=models.IntegerField(verbose_name='被点赞的视频ID',null=True )
+    created_at=models.DateTimeField(verbose_name='点赞时间', auto_now_add=True)
     class Meta:
         app_label = 'videos'
 
-class Like(models.Model):
-    user_id=models.IntegerField('点赞者ID' )
-    video_id=models.IntegerField('被点赞的视频ID' )
-    created_at=models.DateTimeField('点赞时间', auto_now_add=True)
-    class Meta:
-        app_label = 'videos'
 
 class Comment(models.Model):
-    user_id = models.IntegerField('评论者ID' )
-    video_id = models.IntegerField('被评论的视频ID' )
-    content=models.CharField('评论内容',max_length=255)
-    created_at = models.DateTimeField('评论时间',auto_now_add=True)
+    user_id = models.IntegerField(verbose_name='评论者ID' ,null=True)
+    video_id = models.IntegerField(verbose_name='被评论的视频ID',null=True )
+    content=models.CharField(verbose_name='评论内容',max_length=255)
+    created_at = models.DateTimeField(verbose_name='评论时间',auto_now_add=True)
     class Meta:
         app_label = 'videos'
 
 class Reply(models.Model):
-    #id = models.IntegerField('回复ID',primary_key=True )
-    user_id = models.IntegerField('回复者ID' )
-    comment_id = models.IntegerField('所属评论ID' )
-    content=models.CharField('回复内容',max_length=255)
-    created_at = models.DateTimeField('回复时间', auto_now_add=True)
+    #id = models.IntegerField(verbose_name='回复ID',primary_key=True )
+    user_id = models.IntegerField(verbose_name='回复者ID',null=True )
+    comment_id = models.IntegerField(verbose_name='所属评论ID',null=True )
+    content=models.CharField(verbose_name='回复内容',max_length=255)
+    created_at = models.DateTimeField(verbose_name='回复时间', auto_now_add=True)
     class Meta:
         app_label = 'videos'
 
-class Collect(models.Model):
-    user_id = models.IntegerField('收藏者ID'  )
-    video_id = models.IntegerField('被收藏的视频ID'  )
-    created_at = models.DateTimeField('收藏时间', auto_now_add=True)
+
+class Favorite(models.Model):
+    title = models.CharField(verbose_name='默认收藏夹', max_length=64)
+    description = models.TextField(verbose_name='描述')
+    status = models.IntegerField(verbose_name="是否为私有", default=0)  # 0 - 公开    1 - 私有
+    user = models.ForeignKey(User, verbose_name='收藏夹所属用户', on_delete=models.CASCADE)
+    #avatar_url = models.CharField(verbose_name='封面路径', max_length=128)
+
+class Favlist(models.Model):
+    favorite_id = models.IntegerField(verbose_name='收藏夹编号', default=0)
+    video = models.ForeignKey(Video, verbose_name='', on_delete=models.CASCADE)
+

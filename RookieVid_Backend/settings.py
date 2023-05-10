@@ -179,7 +179,8 @@ email_title = '邮箱验证'
 DEFAULT_FILE_STORAGE = 'storages.backends.sftpstorage.SFTPStorage'
 
 
+MEDIA_URL = '/media/'
 MEDIA_ROOT = '/home/aamofe/data'
-VIDRO_URL = os.path.join(MEDIA_ROOT, 'video_file')
+VIDEO_URL = os.path.join(MEDIA_ROOT, 'video_file')
 COVER_URL = os.path.join(MEDIA_ROOT, 'cover_file')
 AVATAR_URL = os.path.join(MEDIA_ROOT, 'avatar_file')
