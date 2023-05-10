@@ -55,6 +55,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "middleware.auth.AuthMiddleware",
 ]
 ALLOWED_HOSTS=['*']
 # 跨域增加忽略
@@ -181,3 +182,4 @@ DEFAULT_FILE_STORAGE = 'storages.backends.sftpstorage.SFTPStorage'
 MEDIA_ROOT = '/home/aamofe/data'
 VIDRO_URL = os.path.join(MEDIA_ROOT, 'video_file')
 COVER_URL = os.path.join(MEDIA_ROOT, 'cover_file')
+AVATAR_URL = os.path.join(MEDIA_ROOT, 'avatar_file')
