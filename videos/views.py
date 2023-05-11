@@ -49,7 +49,7 @@ def get_video_by_hotness(request):
         video_list = []
         for video in videos:
             video_dict = video.to_dict()
-            print("video_url: ", video_dict.get('video_url'))
+            #print("video_url: ", video_dict.get('video_url'))
             video_list.append(video_dict)
 
         return JsonResponse({'errno': 0, 'msg': "返回成功！", 'videos': video_list}, safe=False)
