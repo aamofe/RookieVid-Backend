@@ -70,10 +70,11 @@ class Favorite(models.Model):
     title = models.CharField(verbose_name='默认收藏夹', max_length=64)
     description = models.TextField(verbose_name='描述')
     status = models.IntegerField(verbose_name="是否为私有", default=0)  # 0 - 公开    1 - 私有
-    user = models.ForeignKey(User, verbose_name='收藏夹所属用户', on_delete=models.CASCADE)
+    #user = models.ForeignKey(User, verbose_name='收藏夹所属用户', on_delete=models.CASCADE)
+    user_id = models.IntegerField(verbose_name='收藏者ID',null=True )
     #avatar_url = models.CharField(verbose_name='封面路径', max_length=128)
 
 class Favlist(models.Model):
     favorite_id = models.IntegerField(verbose_name='收藏夹编号', default=0)
-    video = models.ForeignKey(Video, verbose_name='', on_delete=models.CASCADE)
+    video_id = models.IntegerField(verbose_name='收藏视频ID',null=True )
 
