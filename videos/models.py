@@ -9,8 +9,6 @@ class Video(models.Model):
     title=models.CharField(verbose_name='视频标题',max_length=255)
     description=models.CharField(verbose_name='视频描述',max_length=255)
 
-    # video = models.FileField(verbose_name='视频', upload_to='', default='')
-    # cover = models.FileField(verbose_name='封面', upload_to='', default='')
     # 这里的字段建议设置上默认值
     video_url = models.CharField(verbose_name='视频路径', max_length=128, default='')
     cover_url = models.CharField(verbose_name='封面路径', max_length=128, default='')
