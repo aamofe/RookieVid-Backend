@@ -179,6 +179,4 @@ DEFAULT_FILE_STORAGE = 'storages.backends.sftpstorage.SFTPStorage'
 
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = '/home/aamofe/data'
-VIDEO_URL = os.path.join(MEDIA_ROOT, 'video_file')
-COVER_URL = os.path.join(MEDIA_ROOT, 'cover_file')
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

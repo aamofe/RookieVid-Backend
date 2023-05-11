@@ -8,12 +8,13 @@ class Video(models.Model):
     label=models.CharField(verbose_name="标签",default="娱乐",max_length=255)
     title=models.CharField(verbose_name='视频标题',max_length=255)
     description=models.CharField(verbose_name='视频描述',max_length=255)
-    video_path = models.CharField(verbose_name='视频地址',null=True,max_length=255)
-    cover_path=models.CharField(verbose_name='封面地址',null=True,max_length=255)
-    # video_file = models.FileField(upload_to='video_file/',null=True)
-    # video_cover=models.FileField(upload_to='video_cover',null=True)
-    
-    # thumbnail_url=models.CharField(verbose_name='视频略缩图地址',max_length=255)
+
+    # video = models.FileField(verbose_name='视频', upload_to='', default='')
+    # cover = models.FileField(verbose_name='封面', upload_to='', default='')
+    # 这里的字段建议设置上默认值
+    video_url = models.CharField(verbose_name='视频路径', max_length=128, default='')
+    cover_url = models.CharField(verbose_name='封面路径', max_length=128, default='')
+
     user_id=models.IntegerField(verbose_name='所属用户',null=True)
     created_at=models.DateTimeField(verbose_name='创建时间',auto_now_add=True)
     reviewed_at=models.DateTimeField(verbose_name='审核时间',null=True)
@@ -30,8 +31,8 @@ class Video(models.Model):
             'label':self.label,
             'title':self.title,
             'description':self.description,
-            'video_url': 'http://101.43.159.45' + self.video_path,
-            'cover_url': 'http://101.43.159.45' + self.cover_path,
+            'video_url': self.video_url,
+            'cover_url': self.cover_url,
             'user':self.user_id,
             'created_at':self.created_at,
             'reviewed_at':self.reviewed_at,
