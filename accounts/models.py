@@ -10,6 +10,7 @@ class User(models.Model):
     email = models.CharField('邮箱', max_length=20)
     password = models.CharField('密码', max_length=16)
     avatar_url = models.CharField('头像地址', max_length=255)
+    signature = models.CharField('个性签名', max_length=100)
     created_at = models.DateTimeField('创建时间', auto_now_add=True)
     status = models.IntegerField('状态', default=0)
 
