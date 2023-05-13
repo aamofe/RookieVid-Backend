@@ -11,5 +11,7 @@ urlpatterns=[
     path('comment_video',comment_video),
     path('reply_comment',reply_comment),
     path('likes_video',like_video),
+    path('create_favorite',create_favorite),
+    path('favorite_video',favorite_video),
     #path('',),
 ]
