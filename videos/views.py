@@ -11,17 +11,21 @@ from accounts.models import User
 from videos.cos_utils import get_cos_client
 from videos.models import Video, Like, Comment, Reply, Favorite, Favlist
 from random import sample
-
+from django.contrib.auth.models import AnonymousUser
 # 视频分类标签
 LABELS = ['娱乐', '军事', '生活', '音乐', '学习', '科技', '运动', '游戏', '影视', '美食']
 
 def get_video_by_label(request):
     if request.method == 'GET':
         label = request.GET.get('label')
+        num=int(request.GET.get('num'))
         if label not in LABELS:
             return JsonResponse({'errno': 0, 'msg': "标签错误！"})
-        videos = Video.objects.filter(label=label)
-        random_videos = sample(list(videos), 5)
+        videos = Video.objects.filter(label=label,reviewed_status=1)
+        if num==-1:
+            num=len(videos)
+        #print('num : ',num)
+        random_videos = sample(list(videos), num)
         video_list = []
         for video in random_videos:
             video_dict = video.to_dict()
@@ -104,8 +108,10 @@ def upload_photo_method(photo_file, photo_id):
 def upload_video(request):
     if request.method == 'POST':
         # 获取上传的视频和封面文件
-        #user = request.user
-        user_id =1
+        user = request.user
+        if isinstance(user, AnonymousUser) or not user.is_authenticated:
+            return JsonResponse({'errno':0, 'msg': "用户未登录！"})
+        user_id =user.id
         label = request.POST.get('label')
         title = request.POST.get('title')
         description = request.POST.get('description')
