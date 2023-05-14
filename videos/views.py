@@ -137,7 +137,7 @@ def upload_video(request):
 def update_video(id,title,label,description,new_video,new_cover):
     try:
         video=Video.objects.filter(id=id)
-    except video.DoesNotExist:
+    except Video.DoesNotExist:
         return JsonResponse({'errno': 0, 'msg': '视频不存在'})
     if len(title)!=0:
         video.title=title
@@ -204,7 +204,7 @@ def view_video(request):
         video_id = request.GET.get('video_id')
         try:
             video = Video.objects.get(id=video_id)
-        except video.DoesNotExist:
+        except Video.DoesNotExist:
             return JsonResponse({'errno': 0, 'msg': '视频不存在'})
         # 将字典列表作为JSON响应返回
         video.view_amount+=1
@@ -222,11 +222,11 @@ def comment_video(request):
         created_at =  datetime.datetime.now()
         try:
             user = User.objects.get(id=user_id)
-        except user.DoesNotExist:
+        except User.DoesNotExist:
             return JsonResponse({'errno': 0, 'msg': '用户不存在'})
         try:
             video = Video.objects.get(id=video_id)
-        except video.DoesNotExist:
+        except Video.DoesNotExist:
             return JsonResponse({'errno': 0, 'msg': '视频不存在'})
         if len(content)==0:
             return JsonResponse({'errno': 0, 'msg': '评论不能为空'})
@@ -269,7 +269,7 @@ def like_video(request):
         video_id = request.POST.get('video_id')
         try:
             video=Video.objects.filter(id=video_id)
-        except video.DoesNotExist:
+        except Video.DoesNotExist:
             return JsonResponse({'errno': 0, 'msg': "视频不存在！"})
         # 检查该用户是否已经点赞过该视频
         try:
@@ -278,7 +278,7 @@ def like_video(request):
             like.delete()
             video.like_amount-=1
             return JsonResponse({'errno': 0, 'msg': "点赞取消成功！"})
-        except like.DoesNotExist:
+        except Like.DoesNotExist:
             # 用户没有点赞过该视频，则添加点赞记录
             like = Like(user_id=user_id, video_id=video_id)
             like.save()
@@ -305,7 +305,7 @@ def get_favorite(user_id):
     try:
         favorite = Favorite.objects.filter(user_id=user_id)
         return favorite.id
-    except favorite.DoesNotExist:
+    except Favorite.DoesNotExist:
         return -1
 def favorite_video(request):
     if request.method == 'POST':
@@ -313,7 +313,7 @@ def favorite_video(request):
         video_id=request.POST.get('video_id')
         try:
             video=Video.objects.filter(video_id=video_id)
-        except video.DoesNotExist:
+        except Video.DoesNotExist:
             return JsonResponse({'errno': 0, 'msg': "视频不存在！"})
         favorite_id = get_favorite(user_id)
         if favorite_id==-1:
