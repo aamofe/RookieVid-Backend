@@ -6,6 +6,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from django.core.mail import send_mail
 from RookieVid_Backend import settings
+from videos.cos_utils import get_cos_client
+from videos.models import Video, Favorite, Favlist
 
 from accounts.models import User, Follow, Vcode
 import os
@@ -135,6 +137,27 @@ def logout(request):
     return JsonResponse({'errno': 0, 'msg': "注销成功"})
 
 
+def upload_photo_method(photo_file, photo_id):
+    client, bucket_name, bucket_region = get_cos_client()
+
+    if photo_id == '' or photo_id == 0:
+        photo_id = str(uuid.uuid4())
+    photo_key = "avatar_file/{}".format(f'{photo_id}.png')
+    response_photo = client.put_object(
+        Bucket=bucket_name,
+        Body=photo_file,
+        Key=photo_key,
+        StorageClass='STANDARD',
+        ContentType="image/png"
+    )
+    photo_url = ""
+    if 'url' in response_photo:
+        photo_url = response_photo['url']
+    else:
+        photo_url = f'https://{bucket_name}.cos.{bucket_region}.myqcloud.com/{photo_key}'
+    return photo_url
+
+
 @csrf_exempt
 def display_profile(request):
     # 如果用户已登录，展示用户信息
@@ -146,7 +169,8 @@ def display_profile(request):
             'username': user.username,
             'uid': user.uid,
             'email': user.email,
-            'avatar_url': user.avatar_url
+            'avatar_url': user.avatar_url,
+            'signature': user.signature
         }
         # return render(request, 'profile.html', context=context)
         return JsonResponse(context)
@@ -160,19 +184,35 @@ def display_profile(request):
 def edit_profile(request):
     if request.method == 'POST':
         username = request.POST.get('username')
-        avatar_file = request.POST.get('avatar_file')
+        signature = request.POST.get('signature')
         # uid = request.POST.get('id')
         # user = User.objects.get(uid=uid)
         user = request.user
         user.username = username
-        avatar_url = os.path.join(settings.COVER_URL, f'{user.uid}.png')
-        user.avatar_url = avatar_url
-        with open(avatar_url, 'wb+') as f:
-            for chunk in avatar_file.chunks():
-                f.write(chunk)
+        user.signature = signature
+        # 上传头像单独写
+        # avatar_url = os.path.join(settings.COVER_URL, f'{user.uid}.png')
+        # user.avatar_url = avatar_url
+        # with open(avatar_url, 'wb+') as f:
+        #    for chunk in avatar_file.chunks():
+        #        f.write(chunk)
         user.save()
+        return JsonResponse({'errno': 0, 'msg': "用户资料修改成功"})
     else:
         return render(request, 'edit_profile.html', {})
+
+
+@csrf_exempt
+def edit_avatar(request):
+    if request.method == 'POST':
+        user = request.user
+        avatar_file = request.FILES.get('avatar_file')
+        avatar_url = upload_photo_method(avatar_file, user.uid)
+        user.avatar_url = avatar_url
+        user.save()
+        return JsonResponse({'errno': 0, 'msg': "头像上传成功"})
+    else:
+        return JsonResponse({'errno': 1, 'msg': "请求方式错误"})
 
 
 @csrf_exempt
@@ -297,3 +337,77 @@ def get_followers(request):
         return JsonResponse({'errno': 0, 'msg': "粉丝列表查询成功", 'data': follower_list})
     else:
         return JsonResponse({'errno': 0, 'msg': "粉丝列表为空", 'data': follower_list})
+
+
+@csrf_exempt
+def get_videos(request):
+    if request.method == 'POST':
+        video_list = []
+        user_id = request.POST.get('user_id')
+        if Video.objects.filter(user_id=user_id).exists():
+            videos = Video.objects.filter(user_id=user_id)
+            for video in videos:
+                video_data = Video.to_dict(video)
+                video_list.append(video_data)
+            return JsonResponse({'errno': 0, 'msg': "投稿列表查询成功", 'data': video_list})
+        else:
+            return JsonResponse({'errno': 0, 'msg': "投稿列表为空", 'data': video_list})
+    else:
+        return JsonResponse({'errno': 1, 'msg': "请求方法错误"})
+
+
+@csrf_exempt
+def get_favorites(request):
+    if request.method == 'POST':
+        user_id = request.POST.get('user_id')
+        favorite_list = []
+        uid = request.user.uid
+        if uid == user_id:
+            if Favorite.objects.filter(user_id=uid).exists():
+                favorites = Favorite.objects.filter(user_id=uid)
+                for favorite in favorites:
+                    favorite_data = {
+                        'title': favorite.title,
+                        'description': favorite.description,
+                        'status': favorite.status
+                    }
+                    favorite_list.append(favorite_data)
+                return JsonResponse({'errno': 0, 'msg': "收藏夹列表查询成功", 'data': favorite_list})
+            else:
+                return JsonResponse({'errno': 0, 'msg': "收藏夹列表为空", 'data': favorite_list})
+        else:
+            if Favorite.objects.filter(user_id=user_id).exists():
+                favorites = Favorite.objects.filter(user_id=user_id)
+                for favorite in favorites:
+                    if favorite.status == 0:
+                        favorite_data = {
+                            'title': favorite.title,
+                            'description': favorite.description,
+                        }
+                        favorite_list.append(favorite_data)
+                if len(favorite_list) == 0:
+                    return JsonResponse({'errno': 0, 'msg': "收藏夹列表为空", 'data': favorite_list})
+                else:
+                    return JsonResponse({'errno': 0, 'msg': "收藏夹列表查询成功", 'data': favorite_list})
+            else:
+                return JsonResponse({'errno': 0, 'msg': "收藏夹列表为空", 'data': favorite_list})
+    else:
+        return JsonResponse({'errno': 1, 'msg': "请求方法错误"})
+
+
+@csrf_exempt
+def get_favlist(request):
+    if request.method == 'POST':
+        favorite_id = request.POST.get('favorite_id')
+        video_list = []
+        if Favorite.objects.filter(favorite_id=favorite_id).exists():
+            favorites = Favorite.objects.filter(favorite_id=favorite_id)
+            for favorite in favorites:
+                video = Video.objects.get(video_id = favorite.video_id)
+                video_data = Video.to_dect(video)
+                video_list.append(video_data)
+            return JsonResponse({'errno': 0, 'msg': "收藏列表查询成功", 'data': favorite_list})
+        else:
+            return JsonResponse({'errno': 0, 'msg': "收藏列表为空", 'data': favorite_list})
+    else:
+        return JsonResponse({'errno': 1, 'msg': "请求方法错误"})

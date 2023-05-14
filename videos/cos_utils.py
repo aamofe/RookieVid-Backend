@@ -17,4 +17,36 @@ def get_cos_client():
     return client, bucket_name, region
 
 
+def delete_object(key):
+    client, bucket_name, bucket_region = get_cos_client()
+    #.cssg-snippet-body-start:[delete-object]
+    response = client.delete_object(
+        Bucket=bucket_name,
+        Key=key
+    )
 
+
+def delete_object_comp():
+    # .cssg-snippet-body-start:[delete-object-comp]
+    # 删除object
+    client, bucket_name, bucket_region = get_cos_client()
+    response = client.delete_object(
+        Bucket='examplebucket-1250000000',
+        Key='exampleobject'
+    )
+    # 删除多个object
+    ## deleteObjects
+    response = client.delete_objects(
+        Bucket='examplebucket-1250000000',
+        Delete={
+            'Object': [
+                {
+                    'Key': 'exampleobject1',
+                },
+                {
+                    'Key': 'exampleobject2',
+                },
+            ],
+            'Quiet': 'true' | 'false'
+        }
+    )
