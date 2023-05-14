@@ -103,14 +103,17 @@ def upload_photo_method(photo_file, photo_id):
 def upload_video(request):
     if request.method == 'POST':
         # 获取上传的视频和封面文件
-        user_id = 1
+        #user = request.user
+        user_id =1
         label = request.POST.get('label')
         title = request.POST.get('title')
         description = request.POST.get('description')
 
         if len(title) == 0 or len(description) == 0:
             return JsonResponse({'errno': 2012, 'msg': "标题/描述不能为空！"})
-        print(label, title, description)
+        if label not in LABELS:
+            return JsonResponse({'errno': 2013, 'msg': "标签错误！"})
+        #print(label, title, description)
 
         video_file = request.FILES.get('video_file')
         cover_file = request.FILES.get('cover_file')
