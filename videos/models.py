@@ -64,6 +64,8 @@ class Comment(models.Model):
             reply_list.append(r.to_dict())
         return {
             'user_id':self.user_id,
+            'user_name':User.objects.get(id=self.user_id).username,
+            'avatar_url':User.objects.get(id=self.user_id).avatar_url,
             'video_id':self.video_id,
             'content':self.content,
             'created_at':self.created_at,
@@ -81,6 +83,8 @@ class Reply(models.Model):
     def to_dict(self):
         return {
             'user_id':self.user_id,
+            'user_name':User.objects.get(id=self.user_id).username,
+            'avatar_url':User.objects.get(id=self.user_id).avatar_url,
             'comment_id':self.comment_id,
             'content':self.content,
             'created_at':self.created_at

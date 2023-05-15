@@ -226,7 +226,10 @@ def view_video(request):
 @csrf_exempt
 def comment_video(request):
     if request.method == 'POST':
-        user_id = 1  # 测试用！！！
+        user = request.user
+        if isinstance(user, AnonymousUser) or not user.is_authenticated:
+            return JsonResponse({'errno': 0, 'msg': "用户未登录！"})
+        user_id=user.id
         video_id = request.POST.get('video_id')
         content = request.POST.get('content')
         created_at =  datetime.datetime.now()
@@ -258,7 +261,10 @@ def comment_video(request):
 def reply_comment(request):
     if request.method == 'POST':
         # 获取请求中传入的参数
-        user_id=1
+        user = request.user
+        if isinstance(user, AnonymousUser) or not user.is_authenticated:
+            return JsonResponse({'errno': 0, 'msg': "用户未登录！"})
+        user_id = user.id
         comment_id = request.POST.get('comment_id')
         content = request.POST.get('content')
         try:
@@ -280,7 +286,10 @@ def reply_comment(request):
 def like_video(request):
     if request.method == 'POST':
         # 获取请求中传入的参数
-        user_id=1
+        user = request.user
+        if isinstance(user, AnonymousUser) or not user.is_authenticated:
+            return JsonResponse({'errno': 0, 'msg': "用户未登录！"})
+        user_id = user.id
         video_id = request.POST.get('video_id')
         try:
             video=Video.objects.get(id=video_id)
@@ -307,7 +316,10 @@ def like_video(request):
 def create_favorite(request):
     if request.method == 'POST':
         # 获取请求中传入的参数
-        user_id = 1
+        user = request.user
+        if isinstance(user, AnonymousUser) or not user.is_authenticated:
+            return JsonResponse({'errno': 0, 'msg': "用户未登录！"})
+        user_id=user.id
         title = request.POST.get('title')
         description = request.POST.get('description')
         status =int(request.POST.get('status'))
@@ -328,9 +340,21 @@ def create_favorite(request):
 
 def get_favorite(request):
     if request.method == 'GET':
-        user_id=1
+        user = request.user
+        status=0#默认访问自己的
+        user_id = request.GET.get('user_id')
+        if not user_id:#没传参，那就是访问自己的
+            user_id = user.id
+
+            if isinstance(user, AnonymousUser) or not user.is_authenticated:
+                return JsonResponse({'errno': 0, 'msg': "用户未登录！"})
+        else:#访问别人的
+           status=1
         try:
-            favorite = Favorite.objects.filter(user_id=user_id)
+            if status:
+                favorite = Favorite.objects.filter(user_id=user_id,status=status)
+            else:
+                favorite = Favorite.objects.filter(user_id=user_id)
             favorite_list=[]
             for f in favorite:
                 favorite_list.append(f.to_dict())
@@ -342,7 +366,10 @@ def get_favorite(request):
     
 def favorite_video(request):
     if request.method == 'POST':
-        user_id = 1
+        user = request.user
+        if isinstance(user, AnonymousUser) or not user.is_authenticated:
+            return JsonResponse({'errno': 0, 'msg': "用户未登录！"})
+        user_id = user.id
         video_id=request.POST.get('video_id')
         favorite_id=request.POST.get('favorite_id')
         try:
