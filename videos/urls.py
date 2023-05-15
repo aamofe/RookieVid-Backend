@@ -10,8 +10,8 @@ urlpatterns=[
     path('view_video',view_video),
     path('comment_video',comment_video),
     path('reply_comment',reply_comment),
-    path('likes_video',like_video),
+    path('like_video',like_video),
     path('create_favorite',create_favorite),
     path('favorite_video',favorite_video),
-    #path('',),
+    path('get_favorite',get_favorite),
 ]

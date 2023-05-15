@@ -58,11 +58,16 @@ class Comment(models.Model):
     class Meta:
         app_label = 'videos'
     def to_dict(self):
+        reply=Reply.objects.filter(comment_id=self.id)
+        reply_list=[]
+        for r in reply:
+            reply_list.append(r.to_dict())
         return {
             'user_id':self.user_id,
             'video_id':self.video_id,
             'content':self.content,
-            'created_at':self.created_at
+            'created_at':self.created_at,
+            'reply':reply_list
         }
 
 class Reply(models.Model):
@@ -88,6 +93,7 @@ class Favorite(models.Model):
     #user = models.ForeignKey(User, verbose_name='收藏夹所属用户', on_delete=models.CASCADE)
     user_id = models.IntegerField(verbose_name='收藏者ID',null=True )
     #avatar_url = models.CharField(verbose_name='封面路径', max_length=128)
+    created_at = models.DateTimeField(verbose_name='创建收藏夹时间',null=True, auto_now_add=True)
     def to_dict(self):
         return {
             'title':self.title,
@@ -98,7 +104,7 @@ class Favorite(models.Model):
 class Favlist(models.Model):
     favorite_id = models.IntegerField(verbose_name='收藏夹编号', default=0)
     video_id = models.IntegerField(verbose_name='收藏视频ID',null=True )
-
+    created_at = models.DateTimeField(verbose_name='收藏视频时间', null=True,auto_now_add=True)
     def to_dict(self):
         return {
             'favorite_id':self.favorite_id,
