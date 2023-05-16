@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.http import JsonResponse
 from django.utils.deprecation import MiddlewareMixin
 from jose import jwt, ExpiredSignatureError, JWTError
 
@@ -13,11 +14,13 @@ class AuthMiddleware(MiddlewareMixin):
             try:
                 jwt_token = jwt.decode(token, settings.SECRET_KEY)
             except ExpiredSignatureError:
-                return False
+                return JsonResponse({'msg': "登录已过期，请重新登录"})
             except JWTError:
-                return False
-
-            user = User.objects.get(uid=jwt_token.get('uid'))
+                return JsonResponse({'msg': "用户未登录，请先登录"})
+            try:
+                user = User.objects.get(uid=jwt_token.get('uid'))
+            except User.DoesNotExist:
+                return JsonResponse({'msg': "用户不存在，请先注册"})
             request.user = user
 
         return
