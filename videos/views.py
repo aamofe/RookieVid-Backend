@@ -226,9 +226,8 @@ def view_video(request):
 @csrf_exempt
 def comment_video(request):
     if request.method == 'POST':
-        # user = request.user
-
-        user_id=1
+        user = request.user
+        user_id=user.id
         video_id = request.POST.get('video_id')
         content = request.POST.get('content')
         created_at =  datetime.datetime.now()
@@ -237,7 +236,7 @@ def comment_video(request):
         
         except User.DoesNotExist:
             return JsonResponse({'errno': 0, 'msg': '用户不存在'})
-        #print('video_id :',video_id)
+        print('video_id :',video_id)
         try:
             video = Video.objects.get(id=video_id)
         except Video.DoesNotExist:
@@ -263,7 +262,8 @@ def delete_comment(request):
         try:
             comment=Comment.objects.get(id=comment_id)
             try:
-                video=Video.objects.get(id=comment.video_id)
+                #video=Video.objects.get(id=comment.video_id)
+                video = Video.objects.get(id=comment.video_id)
                 if not (user.id == comment.user_id or user.id == video.user_id or user.status == 1):
                     return JsonResponse({'errno': 0, 'msg': "没有权限删除评论！"})
                 reply = Reply.objects.filter(comment_id=comment_id)
@@ -298,7 +298,7 @@ def reply_comment(request):
             video=Video.objects.get(id=video_id)
             if len(content) == 0:
                 return JsonResponse({'errno': 0, 'msg': '回复不能为空'})
-            reply = Reply(user_id=user_id, comment_id=comment_id, content=content)
+            reply = Reply(user_id=user_id, comment_id=comment_id, content=content,video_id=video_id)
             reply.save()
             comment.reply_amount += 1
             video.comment_amount += 1
