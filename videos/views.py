@@ -140,7 +140,7 @@ def upload_video(request):
         return JsonResponse({'errno': 0, 'msg': "上传成功"})
     else:
         return JsonResponse({'errno':0, 'msg': "请求方法错误！"})
-def update_video(id,title,label,description,new_video,new_cover):
+def update_video_method(id,title,label,description,new_video,new_cover):
     try:
         video=Video.objects.get(id=id)
     except Video.DoesNotExist:
@@ -179,7 +179,7 @@ def manage_video(request):
             description = request.POST.get('description')
             new_video=request.POST.get('new_video')
             new_cover=request.POST.get('new_cover')
-            update_video(video_id,title,label,description,new_video,new_cover)
+            update_video_method(video_id,title,label,description,new_video,new_cover)
         else:
             return JsonResponse({'errno': 0, 'msg': '操作不合法'})
     else:
@@ -226,10 +226,9 @@ def view_video(request):
 @csrf_exempt
 def comment_video(request):
     if request.method == 'POST':
-        user = request.user
-        if isinstance(user, AnonymousUser) or not user.is_authenticated:
-            return JsonResponse({'errno': 0, 'msg': "用户未登录！"})
-        user_id=user.id
+        # user = request.user
+
+        user_id=1
         video_id = request.POST.get('video_id')
         content = request.POST.get('content')
         created_at =  datetime.datetime.now()
@@ -252,35 +251,91 @@ def comment_video(request):
             created_at=created_at
         )
         comment.save()
+        video.comment_amount+=1
+        video.save()
         return JsonResponse({'errno': 0, 'msg': '评论成功'})
     else:
         return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
-
-
+def delete_comment(request):
+    if request.method=='POST':
+        user=request.user
+        comment_id=request.POST.get('comment_id')
+        try:
+            comment=Comment.objects.get(id=comment_id)
+            try:
+                video=Video.objects.get(id=comment.video_id)
+                if not (user.id == comment.user_id or user.id == video.user_id or user.status == 1):
+                    return JsonResponse({'errno': 0, 'msg': "没有权限删除评论！"})
+                reply = Reply.objects.filter(comment_id=comment_id)
+                for r in reply:
+                    r.delete()
+                    video.comment_amount -= 1
+                comment.delete()
+                video.comment_amount -= 1
+                video.save()
+                return JsonResponse({'errno': 0, 'msg': "删除评论成功！"})
+            except:
+                return JsonResponse({'errno': 0, 'msg': "视频不存在！"})
+        except Comment.DoesNotExist:
+            return JsonResponse({'errno': 0, 'msg': "评论不存在！"})
+    else:
+        return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
 @csrf_exempt
 def reply_comment(request):
     if request.method == 'POST':
         # 获取请求中传入的参数
         user = request.user
-        if isinstance(user, AnonymousUser) or not user.is_authenticated:
-            return JsonResponse({'errno': 0, 'msg': "用户未登录！"})
         user_id = user.id
         comment_id = request.POST.get('comment_id')
         content = request.POST.get('content')
+        video_id=request.POST.get('video_id')
         try:
             comment=Comment.objects.get(id=comment_id)
         except Comment.DoesNotExist:
             return JsonResponse({'errno': 0, 'msg': '评论不存在'})
         # 创建回复评论对象
-        if len(content)==0:
-            return JsonResponse({'errno': 0, 'msg': '回复不能为空'})
-        reply = Reply(user_id=user_id, comment_id=comment_id, content=content)
-        reply.save()
-        # 构造返回给前端的数据
-        return JsonResponse({'errno': 0, 'errmsg': 'success'})
+        try:
+            video=Video.objects.get(id=video_id)
+            if len(content) == 0:
+                return JsonResponse({'errno': 0, 'msg': '回复不能为空'})
+            reply = Reply(user_id=user_id, comment_id=comment_id, content=content)
+            reply.save()
+            comment.reply_amount += 1
+            video.comment_amount += 1
+            comment.save()
+            video.save()
+            return JsonResponse({'errno': 0, 'errmsg': '回复成功'})
+        except Video.DoesNotExist:
+            return JsonResponse({'errno': 0, 'msg': '视频不存在'})
+
     else:
         return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
-
+def delete_reply(request):
+    if request.method=='POST':
+        user=request.user
+        reply_id=request.POST.get('reply_id')
+        try:
+            reply=Reply.objects.get(id=reply_id)
+            try:
+                comment = Comment.objects.get(id=reply.comment_id)
+                try:
+                    video = Video.objects.get(id=reply.video_id)
+                    if not (user.id == comment.user_id or user.id == reply.user_id or user.id == video.user_id or user.status == 1):
+                        return JsonResponse({'errno': 0, 'msg': "没有权限删除回复！"})
+                    reply.delete()
+                    video.comment_amount -= 1
+                    comment.reply_amount -= 1
+                    video.save()
+                    comment.save()
+                    return JsonResponse({'errno': 0, 'msg': "删除回复成功！"})
+                except:
+                    return JsonResponse({'errno': 0, 'msg': "视频不存在！"})
+            except:
+                return JsonResponse({'errno': 0, 'msg': "评论不存在！"})
+        except Comment.DoesNotExist:
+            return JsonResponse({'errno': 0, 'msg': "回复不存在！"})
+    else:
+        return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
 
 @csrf_exempt
 def like_video(request):
@@ -301,14 +356,14 @@ def like_video(request):
             # 用户已经点赞过该视频，则取消点赞
             like.delete()
             video.like_amount-=1
-            print('video.like_amount : ',video.like_amount)
+            #print('video.like_amount : ',video.like_amount)
             return JsonResponse({'errno': 0, 'msg': "点赞取消成功！"})
         except Like.DoesNotExist:
             # 用户没有点赞过该视频，则添加点赞记录
             like = Like(user_id=user_id, video_id=video_id)
             like.save()
             video.like_amount += 1
-            print('video.like_amount : ',video.like_amount)
+            #('video.like_amount : ',video.like_amount)
             return JsonResponse({'errno': 0, 'msg': "点赞成功！"})
     else:
         return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
