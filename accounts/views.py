@@ -161,10 +161,8 @@ def upload_photo_method(photo_file, photo_id):
 @csrf_exempt
 def display_profile(request):
     # 如果用户已登录，展示用户信息
-    try:
-        # uid = request.POST.get('id')
-        # user = User.objects.get(uid=uid)
-        user = request.user
+    # user = request.user
+    if request.method == 'POST':
         context = {
             'username': user.username,
             'uid': user.uid,
@@ -174,10 +172,12 @@ def display_profile(request):
         }
         # return render(request, 'profile.html', context=context)
         return JsonResponse(context)
+    else:
+        return JsonResponse({'errno': 1, 'msg': "请求方式错误"})
     # 若用户未登录，跳转到登录页面
-    except User.DoesNotExist:
+    #except User.DoesNotExist:
         # return render(request, 'login.html', {})
-        return JsonResponse({'msg': "请先登录"})
+     #   return JsonResponse({'msg': "请先登录"})
 
 
 @csrf_exempt
@@ -191,11 +191,6 @@ def edit_profile(request):
         user.username = username
         user.signature = signature
         # 上传头像单独写
-        # avatar_url = os.path.join(settings.COVER_URL, f'{user.uid}.png')
-        # user.avatar_url = avatar_url
-        # with open(avatar_url, 'wb+') as f:
-        #    for chunk in avatar_file.chunks():
-        #        f.write(chunk)
         user.save()
         return JsonResponse({'errno': 0, 'msg': "用户资料修改成功"})
     else:
