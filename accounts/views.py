@@ -161,7 +161,7 @@ def upload_photo_method(photo_file, photo_id):
 @csrf_exempt
 def display_profile(request):
     # 如果用户已登录，展示用户信息
-    # user = request.user
+    user = request.user
     if request.method == 'POST':
         context = {
             'username': user.username,
