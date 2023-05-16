@@ -21,6 +21,7 @@ class Video(models.Model):
     view_amount=models.IntegerField(verbose_name='播放量',default=0)
     fav_amount=models.IntegerField(verbose_name='收藏量',default=0)
     like_amount=models.IntegerField(verbose_name='点赞数',default=0)
+    comment_amount=models.IntegerField(verbose_name='总评论数',default=0)
     class Meta:
         app_label = 'videos'
     def to_dict(self):
@@ -40,6 +41,7 @@ class Video(models.Model):
             'view_amount':self.view_amount,
             'fav_amount':self.fav_amount,
             'like_amount':self.like_amount,
+            'comment_amount':self.comment_amount,
         }
     
 class Like(models.Model):
@@ -55,6 +57,7 @@ class Comment(models.Model):
     video_id = models.IntegerField(verbose_name='被评论的视频ID',null=True )
     content=models.CharField(verbose_name='评论内容',max_length=255)
     created_at = models.DateTimeField(verbose_name='评论时间',auto_now_add=True)
+    reply_amount = models.IntegerField(verbose_name='总点赞数', default=0)
     class Meta:
         app_label = 'videos'
     def to_dict(self):
@@ -63,26 +66,31 @@ class Comment(models.Model):
         for r in reply:
             reply_list.append(r.to_dict())
         return {
+            'id':self.id,
             'user_id':self.user_id,
             'user_name':User.objects.get(id=self.user_id).username,
             'avatar_url':User.objects.get(id=self.user_id).avatar_url,
             'video_id':self.video_id,
             'content':self.content,
             'created_at':self.created_at,
-            'reply':reply_list
+            'reply':reply_list,
+            'reply_amount':self.reply_amount,
         }
 
 class Reply(models.Model):
     #id = models.IntegerField(verbose_name='回复ID',primary_key=True )
     user_id = models.IntegerField(verbose_name='回复者ID',null=True )
     comment_id = models.IntegerField(verbose_name='所属评论ID',null=True )
+    video_id = models.IntegerField(verbose_name='被回复的视频ID',default=1, null=True)
     content=models.CharField(verbose_name='回复内容',max_length=255)
     created_at = models.DateTimeField(verbose_name='回复时间', auto_now_add=True)
     class Meta:
         app_label = 'videos'
     def to_dict(self):
         return {
+            'id': self.id,
             'user_id':self.user_id,
+            'video_id':self.video_id,
             'user_name':User.objects.get(id=self.user_id).username,
             'avatar_url':User.objects.get(id=self.user_id).avatar_url,
             'comment_id':self.comment_id,

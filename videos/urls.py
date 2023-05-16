@@ -14,4 +14,6 @@ urlpatterns=[
     path('create_favorite',create_favorite),
     path('favorite_video',favorite_video),
     path('get_favorite',get_favorite),
+    path('delete_comment',delete_comment),
+    path('delete_reply',delete_reply),
 ]
