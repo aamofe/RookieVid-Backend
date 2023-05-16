@@ -272,6 +272,8 @@ def delete_comment(request):
                     video.comment_amount -= 1
                 comment.delete()
                 video.comment_amount -= 1
+                if video.comment_amount<0:
+                    video.comment_amount=0
                 video.save()
                 return JsonResponse({'errno': 0, 'msg': "删除评论成功！"})
             except:
@@ -325,6 +327,10 @@ def delete_reply(request):
                     reply.delete()
                     video.comment_amount -= 1
                     comment.reply_amount -= 1
+                    if video.comment_amount<0:
+                        video.comment_amount=0
+                    if comment.reply_amount<0:
+                        comment.reply_amount=0
                     video.save()
                     comment.save()
                     return JsonResponse({'errno': 0, 'msg': "删除回复成功！"})
@@ -356,6 +362,9 @@ def like_video(request):
             # 用户已经点赞过该视频，则取消点赞
             like.delete()
             video.like_amount-=1
+            if video.like_amount<0:
+                video.like_amount=0
+            video.save()
             #print('video.like_amount : ',video.like_amount)
             return JsonResponse({'errno': 0, 'msg': "点赞取消成功！"})
         except Like.DoesNotExist:
