@@ -3,7 +3,8 @@ from .views import *
 
 urlpatterns=[
     path('upload_video',upload_video),
-    path('manage_video',manage_video),
+    path('delete_video',delete_video),
+    path('update_video',update_video),
     path('get_video_by_label',get_video_by_label),
     path('get_video_by_hotness',get_video_by_hotness),
     path('search_video',search_video),
