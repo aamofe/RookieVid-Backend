@@ -1,8 +1,25 @@
 import os
 from django.db import models
 
-from accounts.models import User
+from accounts.models import User, Follow
 
+
+class Like(models.Model):
+    user_id=models.IntegerField(verbose_name='点赞者ID',null=True )
+    video_id=models.IntegerField(verbose_name='被点赞的视频ID',null=True )
+    created_at=models.DateTimeField(verbose_name='点赞时间', auto_now_add=True)
+    class Meta:
+        app_label = 'videos'
+
+class Favlist(models.Model):
+    favorite_id = models.IntegerField(verbose_name='收藏夹编号', default=0)
+    video_id = models.IntegerField(verbose_name='收藏视频ID',null=True )
+    created_at = models.DateTimeField(verbose_name='收藏视频时间', null=True,auto_now_add=True)
+    def to_dict(self):
+        return {
+            'favorite_id':self.favorite_id,
+            'video_id':self.video_id,
+        }
 # Create your models here.
 class Video(models.Model):
     label=models.CharField(verbose_name="标签",default="娱乐",max_length=255)
@@ -24,7 +41,42 @@ class Video(models.Model):
     comment_amount=models.IntegerField(verbose_name='总评论数',default=0)
     class Meta:
         app_label = 'videos'
+    def to_simple_dict(self):
+        user = User.objects.get(id=self.user_id),
+        return {
+            'id': self.id,
+            'label': self.label,
+            'title': self.title,
+            'description': self.description,
+            'video_url': self.video_url,
+            'cover_url': self.cover_url,
+            'created_at': self.created_at,
+            'reviewed_at': self.reviewed_at,
+            'reviewed_status': self.reviewed_status,
+            'view_amount': self.view_amount,
+            'fav_amount': self.fav_amount,
+            'like_amount': self.like_amount,
+            'comment_amount': self.comment_amount,
+            'user_id': self.user_id,
+            'user_name': user.username,
+            'avatar_url': user.avatar_url,
+            'user_description': user.signature,
+            'follower_amount': Follow.objects.get(following_id=user.id)
+        }
     def to_dict(self):
+        user=User.objects.get(id=self.user_id),
+        liked=0
+        try :
+            like=Like.objects.get(video_id=self.id,user_id=self.user_id)
+            liked=1
+        except Like.DoesNotExist:
+            liked=0
+        favorited=0
+        try:
+            favorited=Favlist.objects.get(video_id=self.id,user_id=user.id)
+            favorited=1
+        except:
+            favorited=0
         return {
             'id':self.id,
             'label':self.label,
@@ -32,9 +84,6 @@ class Video(models.Model):
             'description':self.description,
             'video_url': self.video_url,
             'cover_url': self.cover_url,
-            'user_id':self.user_id,
-            'user_name':User.objects.get(id=self.user_id).username,
-            'avatar_url':User.objects.get(id=self.user_id).avatar_url,
             'created_at':self.created_at,
             'reviewed_at':self.reviewed_at,
             'reviewed_status':self.reviewed_status,
@@ -42,14 +91,16 @@ class Video(models.Model):
             'fav_amount':self.fav_amount,
             'like_amount':self.like_amount,
             'comment_amount':self.comment_amount,
+            'liked':liked,
+            'favorited':favorited,
+            'user_id': self.user_id,
+            'user_name': user.username,
+            'avatar_url':user.avatar_url,
+            'user_description':user.signature,
+            'follower_amount':Follow.objects.get(following_id=user.id)
         }
     
-class Like(models.Model):
-    user_id=models.IntegerField(verbose_name='点赞者ID',null=True )
-    video_id=models.IntegerField(verbose_name='被点赞的视频ID',null=True )
-    created_at=models.DateTimeField(verbose_name='点赞时间', auto_now_add=True)
-    class Meta:
-        app_label = 'videos'
+
 
 
 class Comment(models.Model):
@@ -113,12 +164,4 @@ class Favorite(models.Model):
             'status':self.status,
             'user_id':self.user_id
         }
-class Favlist(models.Model):
-    favorite_id = models.IntegerField(verbose_name='收藏夹编号', default=0)
-    video_id = models.IntegerField(verbose_name='收藏视频ID',null=True )
-    created_at = models.DateTimeField(verbose_name='收藏视频时间', null=True,auto_now_add=True)
-    def to_dict(self):
-        return {
-            'favorite_id':self.favorite_id,
-            'video_id':self.video_id,
-        }
+

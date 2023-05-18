@@ -1,5 +1,5 @@
 from django.db import models
-\
+
 # Create your models here.
 class Comlpaint(models.Model):
     user_id = models.IntegerField('投诉者ID')
