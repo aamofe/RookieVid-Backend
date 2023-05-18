@@ -44,13 +44,9 @@ def get_review_video_list(request):
         return 0
 
 
-def get_complaint_video_list(request):
-    if request.method == 'POST':
+def get_complaint_video_(request):
+    if request.method == 'GET':
         user_id = request.POST.get('user_id')
         video_id = request.POST.get('video_id')
 
-def send_notification(request):#这里的工程量很大，目测
-    if request.method == 'POST':
-        user_id = request.POST.get('user_id')
-        video_id = request.POST.get('video_id')
 
