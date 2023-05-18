@@ -10,6 +10,7 @@ from videos.cos_utils import get_cos_client
 from videos.models import Video, Favorite, Favlist
 
 from accounts.models import User, Follow, Vcode
+import uuid
 import os
 import jwt
 import re
@@ -121,8 +122,9 @@ def login(request):
         if user.password == password:  # 判断请求的密码是否与数据库存储的密码相同
             # request.session['id'] = user.uid
             payload = {'uid': user.uid, 'username': user.username}
-            encode = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
-            token = str(encode, encoding='utf-8')
+            encode = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256').decode("utf-8")
+            # token = str(encode, encoding='utf-8')
+            token = str(encode)
             return JsonResponse({'token': token, 'status': user.status, 'errno': 0, 'msg': "登录成功"})
         else:
             return JsonResponse({'errno': 1012, 'msg': "密码错误"})
@@ -161,8 +163,8 @@ def upload_photo_method(photo_file, photo_id):
 @csrf_exempt
 def display_profile(request):
     # 如果用户已登录，展示用户信息
-    user = request.user
-    if request.method == 'POST':
+    if request.method == 'GET':
+        user = request.user
         context = {
             'username': user.username,
             'uid': user.uid,
@@ -282,7 +284,6 @@ def create_follow(request):
 def remove_follow(request):
     if request.method == 'POST':
         following_id = request.POST.get('following_id')
-        # follower_id = request.POST.get('id')
         follower_id = request.user.uid
         follow = Follow.objects.get(follower_id=follower_id, following_id=following_id)
         follow.delete()
@@ -294,51 +295,55 @@ def remove_follow(request):
 
 @csrf_exempt
 def get_followings(request):
-    following_list = []
-    # uid = request.POST.get('id')
-    uid = request.user.uid
-    if Follow.objects.filter(follower_id=uid).exists():
-        followings = Follow.objects.filter(follower_id=uid)
-        for following in followings:
-            following_user = User.objects.get(uid=following.following_id)
-            following_data = {
-                'username': following_user.username,
-                'avatar': following_user.avatar_url,
-                'following_id': following.following_id,
-                'follow_time': following.created_at
-            }
-            following_list.append(following_data)
-        return JsonResponse({'errno': 0, 'msg': "关注列表查询成功", 'data': following_list})
+    if request.method == 'GET':
+        following_list = []
+        uid = request.user.uid
+        if Follow.objects.filter(follower_id=uid).exists():
+            followings = Follow.objects.filter(follower_id=uid)
+            for following in followings:
+                following_user = User.objects.get(uid=following.following_id)
+                following_data = {
+                    'username': following_user.username,
+                    'avatar': following_user.avatar_url,
+                    'following_id': following.following_id,
+                    'follow_time': following.created_at
+                }
+                following_list.append(following_data)
+            return JsonResponse({'errno': 0, 'msg': "关注列表查询成功", 'data': following_list})
+        else:
+            return JsonResponse({'errno': 0, 'msg': "关注列表为空", 'data': following_list})
     else:
-        return JsonResponse({'errno': 0, 'msg': "关注列表为空", 'data': following_list})
+        return JsonResponse({'errno': 1, 'msg': "请求方法错误"})
 
 
 @csrf_exempt
 def get_followers(request):
-    follower_list = []
-    # uid = request.POST.get('id')
-    uid = request.user.uid
-    if Follow.objects.filter(following_id=uid).exists():
-        followers = Follow.objects.filter(following_id=uid)
-        for follower in followers:
-            follower_user = User.objects.get(uid=follower.follower_id)
-            follower_data = {
-                'username': follower_user.username,
-                'avatar': follower_user.avatar_url,
-                'following_id': follower.follower_id,
-                'follow_time': follower.created_at
-            }
-            follower_list.append(follower_data)
-        return JsonResponse({'errno': 0, 'msg': "粉丝列表查询成功", 'data': follower_list})
+    if request.method == 'GET':
+        follower_list = []
+        uid = request.user.uid
+        if Follow.objects.filter(following_id=uid).exists():
+            followers = Follow.objects.filter(following_id=uid)
+            for follower in followers:
+                follower_user = User.objects.get(uid=follower.follower_id)
+                follower_data = {
+                    'username': follower_user.username,
+                    'avatar': follower_user.avatar_url,
+                    'following_id': follower.follower_id,
+                    'follow_time': follower.created_at
+                }
+                follower_list.append(follower_data)
+            return JsonResponse({'errno': 0, 'msg': "粉丝列表查询成功", 'data': follower_list})
+        else:
+            return JsonResponse({'errno': 0, 'msg': "粉丝列表为空", 'data': follower_list})
     else:
-        return JsonResponse({'errno': 0, 'msg': "粉丝列表为空", 'data': follower_list})
+        return JsonResponse({'errno': 1, 'msg': "请求方法错误"})
 
 
 @csrf_exempt
 def get_videos(request):
-    if request.method == 'POST':
+    if request.method == 'GET':
         video_list = []
-        user_id = request.POST.get('user_id')
+        user_id = request.GET.get('user_id')
         if Video.objects.filter(user_id=user_id).exists():
             videos = Video.objects.filter(user_id=user_id)
             for video in videos:
@@ -353,8 +358,8 @@ def get_videos(request):
 
 @csrf_exempt
 def get_favorites(request):
-    if request.method == 'POST':
-        user_id = request.POST.get('user_id')
+    if request.method == 'GET':
+        user_id = request.GET.get('user_id')
         favorite_list = []
         uid = request.user.uid
         if uid == user_id:
@@ -392,8 +397,8 @@ def get_favorites(request):
 
 @csrf_exempt
 def get_favlist(request):
-    if request.method == 'POST':
-        favorite_id = request.POST.get('favorite_id')
+    if request.method == 'GET':
+        favorite_id = request.GET.get('favorite_id')
         video_list = []
         if Favorite.objects.filter(favorite_id=favorite_id).exists():
             favorites = Favorite.objects.filter(favorite_id=favorite_id)
