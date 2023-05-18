@@ -42,7 +42,9 @@ class Video(models.Model):
     class Meta:
         app_label = 'videos'
     def to_simple_dict(self):
-        user = User.objects.get(id=self.user_id),
+        user = User.objects.get(id=self.user_id)
+        follower=Follow.objects.filter(following_id=user.id)
+
         return {
             'id': self.id,
             'label': self.label,
@@ -61,22 +63,12 @@ class Video(models.Model):
             'user_name': user.username,
             'avatar_url': user.avatar_url,
             'user_description': user.signature,
-            'follower_amount': Follow.objects.get(following_id=user.id)
+            'follower_amount': len(follower),
         }
     def to_dict(self):
-        user=User.objects.get(id=self.user_id),
-        liked=0
-        try :
-            like=Like.objects.get(video_id=self.id,user_id=self.user_id)
-            liked=1
-        except Like.DoesNotExist:
-            liked=0
-        favorited=0
-        try:
-            favorited=Favlist.objects.get(video_id=self.id,user_id=user.id)
-            favorited=1
-        except:
-            favorited=0
+        user=User.objects.get(id=self.user_id)
+        
+        follower=Follow.objects.filter(following_id=user.id)
         return {
             'id':self.id,
             'label':self.label,
@@ -91,13 +83,11 @@ class Video(models.Model):
             'fav_amount':self.fav_amount,
             'like_amount':self.like_amount,
             'comment_amount':self.comment_amount,
-            'liked':liked,
-            'favorited':favorited,
             'user_id': self.user_id,
             'user_name': user.username,
             'avatar_url':user.avatar_url,
             'user_description':user.signature,
-            'follower_amount':Follow.objects.get(following_id=user.id)
+            'follower_amount':len(follower),
         }
     
 
