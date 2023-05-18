@@ -191,7 +191,7 @@ def edit_profile(request):
         user.save()
         return JsonResponse({'errno': 0, 'msg': "用户资料修改成功"})
     else:
-        return render(request, 'edit_profile.html', {})
+        return JsonResponse({'error': 1, 'msg': "请求方式错误"})
 
 
 @csrf_exempt
