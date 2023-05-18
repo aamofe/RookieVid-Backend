@@ -1,14 +1,13 @@
 import time
-import uuid
-from django.shortcuts import render
 from django.db import models
 from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.models import AnonymousUser
+from decorator.decorator_permission import validate_login, validate_all
 from django.http import JsonResponse
 from django.core.mail import send_mail
 from RookieVid_Backend import settings
 from videos.cos_utils import get_cos_client
 from videos.models import Video, Favorite, Favlist
-
 from accounts.models import User, Follow, Vcode
 import uuid
 import os
@@ -161,6 +160,7 @@ def upload_photo_method(photo_file, photo_id):
 
 
 @csrf_exempt
+@validate_login
 def display_profile(request):
     # 如果用户已登录，展示用户信息
     if request.method == 'GET':
@@ -178,6 +178,7 @@ def display_profile(request):
 
 
 @csrf_exempt
+@validate_login
 def edit_profile(request):
     if request.method == 'POST':
         username = request.POST.get('username')
@@ -195,6 +196,7 @@ def edit_profile(request):
 
 
 @csrf_exempt
+@validate_login
 def edit_avatar(request):
     if request.method == 'POST':
         user = request.user
@@ -208,6 +210,7 @@ def edit_avatar(request):
 
 
 @csrf_exempt
+@validate_login
 def change_password(request):
     if request.method == 'POST':
         old_password = request.POST.get('old_password')
@@ -229,6 +232,8 @@ def change_password(request):
         return JsonResponse({'errno': 1, 'msg': "请求方式错误"})
 
 
+@csrf_exempt
+@validate_login
 def change_email(request):
     if request.method == 'POST':
         email = request.POST.get('email')
@@ -262,6 +267,7 @@ def change_email(request):
 
 
 @csrf_exempt
+@validate_login
 def create_follow(request):
     if request.method == 'POST':
         following_id = request.POST.get('following_id')
@@ -276,6 +282,7 @@ def create_follow(request):
 
 
 @csrf_exempt
+@validate_login
 def remove_follow(request):
     if request.method == 'POST':
         following_id = request.POST.get('following_id')
@@ -289,6 +296,7 @@ def remove_follow(request):
 
 
 @csrf_exempt
+@validate_login
 def get_followings(request):
     if request.method == 'GET':
         following_list = []
@@ -312,6 +320,7 @@ def get_followings(request):
 
 
 @csrf_exempt
+@validate_login
 def get_followers(request):
     if request.method == 'GET':
         follower_list = []
@@ -335,6 +344,7 @@ def get_followers(request):
 
 
 @csrf_exempt
+@validate_all
 def get_videos(request):
     if request.method == 'GET':
         video_list = []
@@ -352,6 +362,7 @@ def get_videos(request):
 
 
 @csrf_exempt
+@validate_login
 def get_favorites(request):
     if request.method == 'GET':
         user_id = request.GET.get('user_id')
@@ -391,6 +402,7 @@ def get_favorites(request):
 
 
 @csrf_exempt
+@validate_login
 def get_favlist(request):
     if request.method == 'GET':
         favorite_id = request.GET.get('favorite_id')

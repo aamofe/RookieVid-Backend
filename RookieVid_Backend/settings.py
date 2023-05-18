@@ -55,7 +55,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "middleware.auth.AuthMiddleware",  # 添加token解密相关中间件
+    # "middleware.auth.AuthMiddleware",  # 添加token解密相关中间件
 ]
 ALLOWED_HOSTS=['*']
 # 跨域增加忽略

@@ -1,0 +1,49 @@
+from django.http import JsonResponse
+from jose import jwt, ExpiredSignatureError, JWTError
+from django.conf import settings
+from accounts.models import User
+
+
+# 必须是已登录状态
+def validate_login(func):
+    def valid_per(request, *args, **kwargs):
+        token = request.META.get('HTTP_Authorization'.upper())
+        if not token:
+            return JsonResponse({'errno': 1016, 'msg': "用户未登录，请先登录"})
+        token = token.replace('Bearer ', '')
+        try:
+            jwt_token = jwt.decode(token, settings.SECRET_KEY)
+        except ExpiredSignatureError:
+            return JsonResponse({'errno': 1017, 'msg': "登录已过期，请重新登录"})
+        except JWTError:
+            return JsonResponse({'errno': 1016, 'msg': "用户未登录，请先登录"})
+        try:
+            user = User.objects.get(uid=jwt_token.get('uid'))
+        except User.DoesNotExist:
+            return JsonResponse({'errno': 1011, 'msg': "用户不存在，请先注册"})
+        request.user = user
+        return func(request, *args, **kwargs)
+
+    return valid_per
+
+
+# 游客/已登录用户都可访问
+def validate_all(func):
+    def valid_per(request, *args, **kwargs):
+        token = request.META.get('HTTP_Authorization'.upper())
+        if token:
+            token = token.replace('Bearer ', '')
+            try:
+                jwt_token = jwt.decode(token, settings.SECRET_KEY)
+            except ExpiredSignatureError:
+                return JsonResponse({'errno': 1017, 'msg': "登录已过期，请重新登录"})
+            except JWTError:
+                return JsonResponse({'errno': 1016, 'msg': "用户未登录，请先登录"})
+            try:
+                user = User.objects.get(uid=jwt_token.get('uid'))
+            except User.DoesNotExist:
+                return JsonResponse({'errno': 1011, 'msg': "用户不存在，请先注册"})
+            request.user = user
+        return func(request, *args, **kwargs)
+
+    return valid_per
