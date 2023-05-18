@@ -1,5 +1,5 @@
 import time
-
+import uuid
 from django.shortcuts import render
 from django.db import models
 from django.views.decorators.csrf import csrf_exempt
@@ -406,8 +406,8 @@ def get_favlist(request):
                 video = Video.objects.get(video_id = favorite.video_id)
                 video_data = Video.to_dect(video)
                 video_list.append(video_data)
-            return JsonResponse({'errno': 0, 'msg': "收藏列表查询成功", 'data': favorite_list})
+            return JsonResponse({'errno': 0, 'msg': "收藏列表查询成功", 'data':video_list})
         else:
-            return JsonResponse({'errno': 0, 'msg': "收藏列表为空", 'data': favorite_list})
+            return JsonResponse({'errno': 0, 'msg': "收藏列表为空", 'data': video_list})
     else:
         return JsonResponse({'errno': 1, 'msg': "请求方法错误"})
