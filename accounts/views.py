@@ -122,7 +122,7 @@ def login(request):
         if user.password == password:  # 判断请求的密码是否与数据库存储的密码相同
             # request.session['id'] = user.uid
             payload = {'uid': user.uid, 'username': user.username}
-            encode = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256').decode("utf-8")
+            encode = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
             # token = str(encode, encoding='utf-8')
             token = str(encode)
             return JsonResponse({'token': token, 'status': user.status, 'errno': 0, 'msg': "登录成功"})
@@ -172,14 +172,9 @@ def display_profile(request):
             'avatar_url': user.avatar_url,
             'signature': user.signature
         }
-        # return render(request, 'profile.html', context=context)
-        return JsonResponse(context)
+        return JsonResponse({'context': context, 'errno': 0, 'msg': '查询用户信息成功'})
     else:
         return JsonResponse({'errno': 1, 'msg': "请求方式错误"})
-    # 若用户未登录，跳转到登录页面
-    #except User.DoesNotExist:
-        # return render(request, 'login.html', {})
-     #   return JsonResponse({'msg': "请先登录"})
 
 
 @csrf_exempt

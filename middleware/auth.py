@@ -9,6 +9,7 @@ from accounts.models import User
 class AuthMiddleware(MiddlewareMixin):
     def process_request(self, request):
         token = request.META.get('HTTP_Authorization'.upper())
+        print(token)
         if token:
             token = token.replace('Bearer ', '')
             try:
