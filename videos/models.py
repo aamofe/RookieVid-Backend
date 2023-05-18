@@ -43,8 +43,6 @@ class Video(models.Model):
         app_label = 'videos'
     def to_simple_dict(self):
         user = User.objects.get(id=self.user_id)
-        follower=Follow.objects.filter(following_id=user.id)
-
         return {
             'id': self.id,
             'label': self.label,
@@ -59,11 +57,6 @@ class Video(models.Model):
             'fav_amount': self.fav_amount,
             'like_amount': self.like_amount,
             'comment_amount': self.comment_amount,
-            'user_id': self.user_id,
-            'user_name': user.username,
-            'avatar_url': user.avatar_url,
-            'user_description': user.signature,
-            'follower_amount': len(follower),
         }
     def to_dict(self):
         user=User.objects.get(id=self.user_id)

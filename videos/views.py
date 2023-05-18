@@ -165,10 +165,13 @@ def upload_video(request):
 def delete_video(request):
     if request.method == 'POST':
         # 获取操作类型和视频ID
+        user=request.user
         video_id = request.GET.get('video_id')
         try:
             # 根据视频ID从数据库中删除该视频记录
             video = Video.objects.get(id=video_id)
+            if user.id!=video.user_id:
+                return JsonResponse({'errno': 0, 'msg': '没有权限删除'})
             video.delete()
             return JsonResponse({'errno': 0, 'msg': '删除成功'})
         except Video.DoesNotExist:
@@ -178,26 +181,29 @@ def delete_video(request):
     
 def update_video(request):
     if request.method == 'POST':
+        user=request.user
         video_id = request.GET.get('video_id')
         label = request.POST.get('label')
         title = request.POST.get('title')
         description = request.POST.get('description')
-        video_file=request.FILE.get('video_file')
-        cover_file=request.FILE.get('cover_file')
-        print(label)
+        video_file=request.FILES.get('video_file')
+        cover_file=request.FILES.get('cover_file')
+
         try:
             video = Video.objects.get(id=video_id)
+            if user.id !=video.user_id:
+                return JsonResponse({'errno': 0, 'msg': '没有权限更新'})
             res=0
             if title:
                 video.title = title
                 res+=1
-            if label:
-                if label in LABELS:
+            if label and label!=video.label:
+                if label in LABELS :
                     video.label = label
                     res+=1
                 else:
                     return JsonResponse({'errno': 0, 'msg': '标签不合法'})
-            if  description:
+            if  description and description!=video.description:
                 video.description = description
                 res+=1
             if video_file:
@@ -274,8 +280,8 @@ def view_video(request):
                 favorited=1
             except:
                 favorited=0
-            v[liked]=liked
-            v[favorited]=favorited
+            v['liked']=liked
+            v['favorited']=favorited
             comments = Comment.objects.filter(video_id=video_id)
             comment_list = []
             for c in comments:
@@ -314,6 +320,7 @@ def comment_video(request):
             return JsonResponse({'errno': 0, 'msg': '视频不存在'})
     else:
         return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
+
 def delete_comment(request):
     if request.method=='POST':
         user=request.user
@@ -436,7 +443,6 @@ def create_favorite(request):
     if request.method == 'POST':
         # 获取请求中传入的参数
         user = request.user
-
         user_id=user.id
         title = request.POST.get('title')
         description = request.POST.get('description')
@@ -458,15 +464,16 @@ def create_favorite(request):
 
 def get_favorite(request):
     if request.method == 'GET':
-        user = request.user
-        status=0#默认访问自己的
-        user_id = request.GET.get('user_id')
-        if not user_id:#没传参，那就是访问自己的
-            user_id = user.id
-        else:#访问别人的
-           status=1
+        status= request.GET.get('status')#为1访问别人的，但是也要注意 可能传入的id和自己相同
+
+        if status:#访问别人的
+            user_id = request.GET.get('user_id')
+            if not user_id:
+                return JsonResponse({'errno': 0, 'msg': "请输入用户ID！"})
+        else:
+            user = request.user
         try:
-            if status:
+            if status and user_id!=user.id:
                 favorite = Favorite.objects.filter(user_id=user_id,status=status)
             else:
                 favorite = Favorite.objects.filter(user_id=user_id)
@@ -503,5 +510,18 @@ def favorite_video(request):
             return JsonResponse({'errno': 0, 'msg': "视频不存在！"})
     else:
         return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
-
+def cancel_favorite(request):
+    if request.method == 'POST':
+        user = request.user
+        user_id = user.id
+        video_id=request.POST.get('video_id')
+        favorite_id=request.POST.get('favorite_id')
+        try:
+            fav_list=Favlist.objects.get(video_id=video_id,favorite_id=favorite_id)
+            fav_list.delete()
+            return JsonResponse({'errno': 0, 'msg': "取消收藏成功！"})
+        except Favlist.DoesNotExist:
+            return JsonResponse({'errno': 0, 'msg': "未收藏！"})
+    else:
+        return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
 
