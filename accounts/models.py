@@ -16,8 +16,8 @@ class User(models.Model):
 
 
 class Follow(models.Model):
-    follower_id = models.IntegerField('粉丝ID')
-    following_id = models.IntegerField('被关注者ID')
+    follower_id = models.CharField('粉丝ID', max_length=10)  # 因为用户ID有10位，用integer可能超范围，也可以改成biginteger
+    following_id = models.CharField('被关注者ID', max_length=10)
     created_at = models.DateTimeField('关注时间', auto_now_add=True)
 
 
