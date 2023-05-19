@@ -17,7 +17,7 @@ urlpatterns = [
     path('get_followings', get_followings),
     path('get_followers', get_followers),
     path('get_videos', get_videos),
-    path('get_favorites', get_favorites),
+    path('get_favorite', get_favorite),
     path('get_favlist', get_favlist),
     path('delete_favorite', delete_favorite),
 ]

@@ -356,35 +356,29 @@ def get_videos(request):
 
 @csrf_exempt
 @validate_login
-def get_favorites(request):
+def get_favorite(request):
     if request.method == 'GET':
-        user_id = request.GET.get('user_id')
-        favorite_list = []
-        uid = request.user.uid
-        if uid == user_id:
-            if Favorite.objects.filter(user_id=uid).exists():
-                favorites = Favorite.objects.filter(user_id=uid)
-                for favorite in favorites:
-                    favorite_data = Favorite.to_dict(favorite)
-                    favorite_list.append(favorite_data)
-                return JsonResponse({'errno': 0, 'msg': "收藏夹列表查询成功", 'data': favorite_list})
-            else:
-                return JsonResponse({'errno': 0, 'msg': "收藏夹列表为空", 'data': favorite_list})
+        status= request.GET.get('status')#为1访问别人的，但是也要注意 可能传入的id和自己相同
+
+        if status:#访问别人的
+            user_id = request.GET.get('user_id')
+            if not user_id:
+                return JsonResponse({'errno': 0, 'msg': "请输入用户ID！"})
         else:
-            if Favorite.objects.filter(user_id=user_id).exists():
-                favorites = Favorite.objects.filter(user_id=user_id)
-                for favorite in favorites:
-                    if favorite.status == 0:
-                        favorite_data = Favorite.to_dict(favorite)
-                        favorite_list.append(favorite_data)
-                if len(favorite_list) == 0:
-                    return JsonResponse({'errno': 0, 'msg': "收藏夹列表为空", 'data': favorite_list})
-                else:
-                    return JsonResponse({'errno': 0, 'msg': "收藏夹列表查询成功", 'data': favorite_list})
+            user = request.user
+        try:
+            if status and user_id!=user.id:
+                favorite = Favorite.objects.filter(user_id=user_id,status=status)
             else:
-                return JsonResponse({'errno': 0, 'msg': "收藏夹列表为空", 'data': favorite_list})
+                favorite = Favorite.objects.filter(user_id=user_id)
+            favorite_list=[]
+            for f in favorite:
+                favorite_list.append(f.to_dict())
+            return JsonResponse({'errno': 0, 'favorite':favorite_list,'msg': "获取收藏夹成功！"})
+        except Favorite.DoesNotExist:
+             return JsonResponse({'errno': 0, 'msg': "无收藏夹，请创建收藏夹！"})
     else:
-        return JsonResponse({'errno': 0, 'msg': "请求方法错误"})
+         return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
 
 
 @csrf_exempt

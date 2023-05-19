@@ -7,7 +7,7 @@ urlpatterns=[
     path('update_video',update_video),
     path('get_video_by_label',get_video_by_label),
     path('get_video_by_hotness',get_video_by_hotness),
-    path('search_video',search_video),
+    path('search',search),
     path('view_video',view_video),
     path('comment_video',comment_video),
     path('reply_comment',reply_comment),
@@ -19,4 +19,6 @@ urlpatterns=[
     path('delete_reply',delete_reply),
     path('get_related_video',get_related_video),
     path('get_video',get_video),
+    path('complain_video',complain_video),
+    path('is_complaint',is_complaint),
 ]

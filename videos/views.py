@@ -1,6 +1,6 @@
 import datetime
 import uuid
-
+from decorator.decorator_permission import validate_login, validate_all
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from django.db.models import Q, Count, F, ExpressionWrapper
@@ -8,13 +8,14 @@ from django.db import models
 from django.core import serializers
 import datetime
 from accounts.models import User
+from super_admin.models import Complain
 from videos.cos_utils import get_cos_client
 from videos.models import Video, Like, Comment, Reply, Favorite, Favlist
 from random import sample
 from django.contrib.auth.models import AnonymousUser
 # 视频分类标签
 LABELS = ['娱乐', '军事', '生活', '音乐', '学习', '科技', '运动', '游戏', '影视', '美食']
-
+@validate_all
 def get_video_by_label(request):
     if request.method == 'GET':
         label = request.GET.get('label')
@@ -36,7 +37,7 @@ def get_video_by_label(request):
     else:
         return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
 
-
+@validate_all
 def get_video_by_hotness(request):
     if request.method == 'GET':
         # 构建热度计算表达式
@@ -61,13 +62,13 @@ def get_video_by_hotness(request):
         return JsonResponse({'errno': 0, 'msg': "返回成功！", 'video': video_list}, safe=False)
     else:
         return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
-
+@validate_all
 def get_related_video(request):
     if request.method == 'GET':
         video_id=request.GET.get('video_id')
-        print('video_id : ',video_id)
+        #print('video_id : ',video_id)
         num=int(request.GET.get('num'))
-        print('num : ',num)
+        #print('num : ',num)
         try:
             video=Video.objects.get(id=video_id)
             
@@ -128,6 +129,7 @@ def upload_photo_method(photo_file, photo_id):
     return photo_url
 
 @csrf_exempt
+@validate_login
 def upload_video(request):
     if request.method == 'POST':
         # 获取上传的视频和封面文件
@@ -161,7 +163,7 @@ def upload_video(request):
         return JsonResponse({'errno': 0, 'msg': "上传成功"})
     else:
         return JsonResponse({'errno':0, 'msg': "请求方法错误！"})
-
+@validate_login
 def delete_video(request):
     if request.method == 'POST':
         # 获取操作类型和视频ID
@@ -178,7 +180,8 @@ def delete_video(request):
             return JsonResponse({'errno': 0, 'msg': '视频不存在'})
     else:
         return JsonResponse({'errno': 0, 'msg': '请求方法不合法'})
-    
+
+@validate_login   
 def update_video(request):
     if request.method == 'POST':
         user=request.user
@@ -223,10 +226,11 @@ def update_video(request):
     else:
         return JsonResponse({'errno': 0, 'msg': '请求方法不合法'})
     
-
+@validate_login
 def get_video(request):
     if request.method == 'GET':
         user=request.user
+        print('hhhh ',user.id)
         try:
             videos=Video.objects.filter(user_id=user.id)
             video_list=[]
@@ -237,26 +241,30 @@ def get_video(request):
             return JsonResponse({'errno': 0, 'msg': '没有上传稿件'})
     else:
         return JsonResponse({'errno': 0, 'msg': '请求方法不合法'})
-
-def search_video(request):
+@validate_all
+def search(request):
     if request.method == 'GET':
         keyword = request.GET.get('keyword')
         if not keyword:
             return JsonResponse({'errno': 0, 'msg': '关键字不能为空'})
         # 使用 Q 对象进行模糊查询
-        query = Q(title__icontains=keyword) | Q(description__icontains=keyword)
-        videos = Video.objects.filter(query)
+        query_video = Q(title__icontains=keyword) | Q(description__icontains=keyword)
+        videos = Video.objects.filter(query_video)
+        query_user = Q(username__icontains=keyword) | Q(signature__icontains=keyword)
+        users=User.objects.filter(query_user)
         video_list = []
-        for video in videos:
-            video_dict = video.to_dict()
+        user_list=[]
+        for v in videos:
+            video_dict = v.to_dict()
             # print("video_url: ", video_dict.get('video_url'))
             video_list.append(video_dict)
-
-        return JsonResponse({'errno': 0, 'msg': "返回成功！", 'video': video_list}, safe=False)
+        for u in users:
+            user_list.append(u.to_dict())
+        return JsonResponse({'errno': 0, 'msg': "返回成功！", 'video': video_list,'user':user_list}, safe=False)
     else:
         return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
 
-
+@validate_all
 def view_video(request):
     if request.method == 'GET':
         # 这里可能需要把 不只是根据id获取视频，还有其他方式
@@ -268,18 +276,22 @@ def view_video(request):
             # 将字典列表作为JSON响应返回
             video.view_amount += 1
             v=video.to_dict()
-            liked=0
-            try :
-                #like=Like.objects.get(video_id=self.id,user_id=self.user_id)
-                liked=1
-            except Like.DoesNotExist:
+            user = request.user
+            user_id=user.id
+            if isinstance(user, AnonymousUser):
                 liked=0
-            favorited=0
-            try:
-                #favorited=Favlist.objects.get(video_id=self.id,user_id=user.id)
-                favorited=1
-            except:
-                favorited=0
+                favorited = 0
+            else:
+                try :
+                    like=Like.objects.get(video_id=video_id,user_id=user_id)
+                    liked=1
+                except Like.DoesNotExist:
+                    liked=0
+                try:
+                    favorite=Favlist.objects.get(video_id=video_id,user_id=user_id)
+                    favorited=1
+                except:
+                    favorited=0
             v['liked']=liked
             v['favorited']=favorited
             comments = Comment.objects.filter(video_id=video_id)
@@ -292,9 +304,9 @@ def view_video(request):
 
     else:
         return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
-
-
+    
 @csrf_exempt
+@validate_login
 def comment_video(request):
     if request.method == 'POST':
         user = request.user
@@ -320,7 +332,7 @@ def comment_video(request):
             return JsonResponse({'errno': 0, 'msg': '视频不存在'})
     else:
         return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
-
+@validate_login
 def delete_comment(request):
     if request.method=='POST':
         user=request.user
@@ -349,6 +361,7 @@ def delete_comment(request):
     else:
         return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
 @csrf_exempt
+@validate_login
 def reply_comment(request):
     if request.method == 'POST':
         # 获取请求中传入的参数
@@ -376,6 +389,7 @@ def reply_comment(request):
             return JsonResponse({'errno': 0, 'msg': '评论不存在'})
     else:
         return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
+@validate_login
 def delete_reply(request):
     if request.method=='POST':
         user=request.user
@@ -408,12 +422,14 @@ def delete_reply(request):
         return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
 
 @csrf_exempt
+@validate_login
 def like_video(request):
     if request.method == 'POST':
         # 获取请求中传入的参数
         user = request.user
         user_id = user.id
         video_id = request.POST.get('video_id')
+        print('hahha',user.id)
         try:
             video=Video.objects.get(id=video_id)
             # 检查该用户是否已经点赞过该视频
@@ -438,12 +454,13 @@ def like_video(request):
             return JsonResponse({'errno': 0, 'msg': "视频不存在！"})
     else:
         return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
-
+@validate_login
 def create_favorite(request):
     if request.method == 'POST':
         # 获取请求中传入的参数
         user = request.user
         user_id=user.id
+        print('hah',user_id)
         title = request.POST.get('title')
         description = request.POST.get('description')
         status =int(request.POST.get('status'))
@@ -461,67 +478,104 @@ def create_favorite(request):
             return JsonResponse({'errno': 0, 'msg': "创建收藏夹成功！"})
     else:
         return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
-
-def get_favorite(request):
+@validate_login
+def get_favorite(request):#判断是否已收藏
     if request.method == 'GET':
-        status= request.GET.get('status')#为1访问别人的，但是也要注意 可能传入的id和自己相同
-
-        if status:#访问别人的
-            user_id = request.GET.get('user_id')
-            if not user_id:
-                return JsonResponse({'errno': 0, 'msg': "请输入用户ID！"})
+        user=request.user
+        user_id=user.id
+        video_id=request.GET.get('video_id')
+        res,favorite_list =get_favorite_method(user_id,video_id)
+        if res==0:
+            return JsonResponse({'errno': 0, 'favorite':favorite_list,'msg': "获取收藏夹成功！"})
         else:
-            user = request.user
-        try:
-            if status and user_id!=user.id:
-                favorite = Favorite.objects.filter(user_id=user_id,status=status)
-            else:
-                favorite = Favorite.objects.filter(user_id=user_id)
-            favorite_list=[]
-            for f in favorite:
-                favorite_list.append(f.to_dict())
-            return JsonResponse({'errno': 0, 'favorite':favorite_list,'msg': "获取收藏夹成功！"})   
-        except Favorite.DoesNotExist:
-             return JsonResponse({'errno': 0, 'msg': "无收藏夹，请创建收藏夹！"})
+            return JsonResponse({'errno': 0, 'msg': "无收藏夹，请创建收藏夹！"})
     else:
          return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
-    
+
+def get_favorite_method(user_id,video_id):
+    favorite_list = []
+    try :
+        favorite = Favorite.objects.filter(user_id=user_id)
+        for f in favorite:
+            ff = f.to_dict()
+            try:
+                favlist = Favlist.objects.get(video_id=video_id, favorite_id=f.id)
+                ff['favorited'] = 1
+            except Favlist.DoesNotExist:
+                ff['favorited'] = 0
+            favorite_list.append(ff)
+        return 0,favorite_list
+    except Favorite.DoesNotExist:
+        return -1,favorite_list
+@validate_login
 def favorite_video(request):
     if request.method == 'POST':
         user = request.user
         user_id = user.id
         video_id=request.POST.get('video_id')
-        favorite_id=request.POST.get('favorite_id')
+        favorite_list=request.POST.getlist('favorite_list',[])
+        print(len(favorite_list))
         try:
             video=Video.objects.get(id=video_id)
-            try:
-                favorite = Favorite.objects.get(id=favorite_id)
+            for f_id in favorite_list : #添加收藏
                 try:
-                    fav_list = Favlist.objects.get(video_id=video_id, favorite_id=favorite_id)
-                    return JsonResponse({'errno': 0, 'msg': "已收藏！"})
+                    favorite=Favorite.objects.get(id=f_id,user_id=user_id)
+                except:
+                    return JsonResponse({'errno': 0, 'msg': "收藏夹不属于用户！"})
+                try :
+                    favlist=Favlist.objects.get(favorite_id=f_id,video_id=video_id)
                 except Favlist.DoesNotExist:
-                    fav_list = Favlist(favorite_id=favorite_id, video_id=video_id, created_at=datetime.datetime.now())
-                    fav_list.save()
-                    video.fav_amount += 1
-                    return JsonResponse({'errno': 0, 'msg': "收藏成功！"})
-            except Favorite.DoesNotExist:
-                return JsonResponse({'errno': 0, 'msg': "收藏夹不存在，请先创造收藏夹！"})
+                    favlist=Favlist(user_id=user_id,favorite_id=f_id,video_id=video_id,created_at=datetime.datetime.now())
+                    favlist.save()
+            favorites=Favorite.objects.filter(user_id=user_id)
+            for f in favorites:#取消收藏
+                #print("???",type(f.id),type(favorite_list[0]))
+                if str(f.id) not in favorite_list :
+                    try :
+                        favorite=Favlist.objects.get(favorite_id=f.id,video_id=video_id)
+                        favorite.delete()
+                    except Favlist.DoesNotExist:
+                        pass
+            return JsonResponse({'errno': 0, 'msg': "收藏成功！"})
         except Video.DoesNotExist:
             return JsonResponse({'errno': 0, 'msg': "视频不存在！"})
     else:
         return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
-def cancel_favorite(request):
-    if request.method == 'POST':
-        user = request.user
-        user_id = user.id
+
+
+@validate_login
+def is_complaint(request):
+    if request.method=='GET':
+        user=request.user
         video_id=request.POST.get('video_id')
-        favorite_id=request.POST.get('favorite_id')
+        created_at=datetime.datetime.now()
         try:
-            fav_list=Favlist.objects.get(video_id=video_id,favorite_id=favorite_id)
-            fav_list.delete()
-            return JsonResponse({'errno': 0, 'msg': "取消收藏成功！"})
-        except Favlist.DoesNotExist:
-            return JsonResponse({'errno': 0, 'msg': "未收藏！"})
+            complain=Complain.objects.get(video_id=video_id,user_id=user.id)
+            if (complain.created_at-created_at).seconds<3600:
+                return JsonResponse({'errno': 0,'is_complaint':1, 'msg': "投诉间隔小于1小时！"})
+            else:
+                return JsonResponse({'errno': 0, 'is_complaint': 0, 'msg': "可以投诉！"})
+        except Complain.DoesNotExist:
+            return JsonResponse({'errno': 0,'is_complaint':0, 'msg': "可以投诉！"})
+@validate_login
+def complain_video(request):
+    if request.method=='POST':
+        user=request.user
+        video_id=request.POST.get('video_id')
+        content=request.POST.get('content')
+        created_at=datetime.datetime.now()
+        try :
+            video=Video.objects.get(id=video_id)
+            if len(content)==0:
+                return JsonResponse({'errno': 0, 'msg': "投诉原因不能为空！"})
+            complain = Complain(video_id=video_id, user_id=user.id, reason=content, created_at=created_at,status=0)
+            complain.save()
+            return JsonResponse({'errno': 0, 'msg': "投诉成功！"})
+        except Video.DoesNotExist:
+            return JsonResponse({'errno': 0, 'msg': "视频不存在！"})
     else:
         return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
+
+
+
 
