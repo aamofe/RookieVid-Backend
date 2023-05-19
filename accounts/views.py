@@ -9,23 +9,30 @@ from RookieVid_Backend import settings
 from videos.cos_utils import get_cos_client
 from videos.models import Video, Favorite, Favlist
 from accounts.models import User, Follow, Vcode
+from notifications.views import send_sys_notification
+from notifications.models import Notification
 import uuid
 import os
 import jwt
 import re
 import random
 from django.utils import timezone
+from datetime import datetime, timedelta
 
 # Create your views here.
 
 # 发送验证码
 @csrf_exempt
-def send_mail_vcode(request):
+def send_vcode(request):
     if request.method == 'POST':
         to_email = request.POST.get("email")
         print("to_email : ", to_email)
         if re.match('\w+@\w+.\w+', str(to_email)) is None:
-            return JsonResponse({'errno': 1004, 'msg': "邮箱格式错误"})
+            return JsonResponse({'errno': 0, 'msg': "邮箱格式错误"})
+        # 通过邮箱判断用户是否已存在
+        if User.objects.filter(email=to_email).exists():
+            return JsonResponse({'errno': 0, 'msg': "邮箱已占用，请更换邮箱地址"})
+
         # 获取当前时间
         now_time = timezone.now()
         # 获取上次发送邮件的时间
@@ -33,7 +40,7 @@ def send_mail_vcode(request):
             codes = Vcode.objects.filter(to_email=to_email)
             for vcode in codes:
                 if (now_time - vcode.send_at).seconds < 60:  # 1分钟内不能重复发送邮件
-                    return JsonResponse({'errno': 1005, 'msg': "操作过于频繁，请稍后再试"})
+                    return JsonResponse({'errno': 0, 'msg': "操作过于频繁，请稍后再试"})
         # 随机生成一个新的验证码
         code = str(random.randint(10 ** 5, 10 ** 6 - 1))
         while Vcode.objects.filter(vcode=code).exists():
@@ -46,10 +53,10 @@ def send_mail_vcode(request):
             # 存储验证码
             new_vcode = Vcode(vcode=code, to_email=to_email)
             new_vcode.save()
-            return JsonResponse({'errno': 1000, 'msg': '验证码已发送，请查阅'})
+            return JsonResponse({'errno': 0, 'msg': '验证码已发送，请查阅'})
         else:
             return JsonResponse(
-                {'from': EMAIL_FROM, 'to': to_email, 'errno': 1006, 'msg': "验证码发送失败，请检查邮箱地址"})
+                {'from': EMAIL_FROM, 'to': to_email, 'errno': 0, 'msg': "验证码发送失败，请检查邮箱地址"})
     else:
         return JsonResponse({'error': 0, 'msg': "请求方式错误"})
 
@@ -75,27 +82,25 @@ def register(request):
                     codes = Vcode.objects.filter(to_email=email)
                     for code in codes:
                         code.delete()
-                    return JsonResponse({'errno': 1008, 'msg': '验证码失效，请重新获取'})
+                    return JsonResponse({'errno': 0, 'msg': '验证码失效，请重新获取'})
             else:
-                return JsonResponse({'errno': 1007, 'msg': '验证码错误'})
+                return JsonResponse({'errno': 0, 'msg': '验证码错误'})
         else:
-            return JsonResponse({'errno': 1009, 'msg': '该账户没有获取验证码'})
+            return JsonResponse({'errno': 0, 'msg': '该账户没有获取验证码'})
 
         # 验证码正确，进行注册
         username = request.POST.get('username')  # 获取请求数据
         password_1 = request.POST.get('password_1')
         password_2 = request.POST.get('password_2')
-        # 通过邮箱判断用户是否已存在
-        if User.objects.filter(email=email).exists():
-            return JsonResponse({'errno': 1010, 'msg': "账号已存在，请勿重复注册"})
+
         # 用户名长度为1-20位
         if re.match('.{1,20}', str(username)) is None:
-            return JsonResponse({'errno': 1001, 'msg': "用户名不合法"})
+            return JsonResponse({'errno': 0, 'msg': "用户名不合法"})
         # 密码长度为8-16位，且同时包含数字和字母
         if re.match('(?!^[0-9]+$)(?!^[a-zA-Z]+$)[0-9A-Za-z]{8,16}', str(password_1)) is None:
-            return JsonResponse({'username': username, 'password': password_1, 'errno': 1002, 'msg': "密码格式错误"})
+            return JsonResponse({'username': username, 'password': password_1, 'errno': 0, 'msg': "密码格式错误"})
         if password_1 != password_2:
-            return JsonResponse({'errno': 1003, 'msg': "两次输入的密码不同"})
+            return JsonResponse({'errno': 0, 'msg': "两次输入的密码不同"})
         else:
             # 为用户分配不重复的uid
             uid = str(random.randint(10 ** 9, 10 ** 10 - 1))
@@ -119,16 +124,17 @@ def login(request):
         elif User.objects.filter(email=uid).exists():
             user = User.objects.get(email=uid)
         else:
-            return JsonResponse({'errno': 1011, 'msg': "请先注册"})
+            return JsonResponse({'errno': 0, 'msg': "请先注册"})
         if user.password == password:  # 判断请求的密码是否与数据库存储的密码相同
             # request.session['id'] = user.uid
-            payload = {'uid': user.uid, 'username': user.username}
-            encode = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
+            payload = {'exp': datetime.utcnow()+timedelta(days=2), 'id': user.id}
+            encode = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256').decode()
             # token = str(encode, encoding='utf-8')
             token = str(encode)
+            print(encode)
             return JsonResponse({'token': token, 'status': user.status, 'errno': 0, 'msg': "登录成功"})
         else:
-            return JsonResponse({'errno': 1012, 'msg': "密码错误"})
+            return JsonResponse({'errno': 0, 'msg': "密码错误"})
     else:
         return JsonResponse({'error': 0, 'msg': "请求方式错误"})
 
@@ -178,8 +184,9 @@ def edit_profile(request):
     if request.method == 'POST':
         username = request.POST.get('username')
         signature = request.POST.get('signature')
-        # uid = request.POST.get('id')
-        # user = User.objects.get(uid=uid)
+        # 能不能有自动填入之类的（？
+        if re.match('.{1,20}', str(username)) is None:
+            return JsonResponse({'errno': 0, 'msg': "用户名不合法"})
         user = request.user
         user.username = username
         user.signature = signature
@@ -196,7 +203,7 @@ def edit_avatar(request):
     if request.method == 'POST':
         user = request.user
         avatar_file = request.FILES.get('avatar_file')
-        avatar_url = upload_photo_method(avatar_file, user.uid)
+        avatar_url = upload_photo_method(avatar_file, user.uid)  # 头像的命名还是用uid
         user.avatar_url = avatar_url
         user.save()
         return JsonResponse({'errno': 0, 'msg': "头像上传成功"})
@@ -211,15 +218,13 @@ def change_password(request):
         old_password = request.POST.get('old_password')
         password_1 = request.POST.get('password_1')
         password_2 = request.POST.get('password_2')
-        # uid = request.POST.get('id')
-        # user = User.objects.get(uid=uid)
         user = request.user
         if old_password != user.password:
-            return JsonResponse({'errno': 1013, 'msg': "密码错误，请重新输入"})
+            return JsonResponse({'errno': 0, 'msg': "密码错误，请重新输入"})
         if re.match('(?!^[0-9]+$)(?!^[a-zA-Z]+$)[0-9A-Za-z]{8,16}', str(password_1)) is None:
-            return JsonResponse({'password': password_1, 'errno': 1014, 'msg': "密码格式错误"})
+            return JsonResponse({'password': password_1, 'errno': 0, 'msg': "密码格式错误"})
         if password_1 != password_2:
-            return JsonResponse({'errno': 1015, 'msg': "两次输入的密码不同"})
+            return JsonResponse({'errno': 0, 'msg': "两次输入的密码不同"})
         user.password = password_1
         user.save()
         return JsonResponse({'errno': 0, 'msg': "密码修改成功"})
@@ -245,14 +250,12 @@ def change_email(request):
                     codes = Vcode.objects.filter(to_email=email)
                     for code in codes:
                         code.delete()
-                    return JsonResponse({'errno': 1008, 'msg': '验证码失效，请重新获取'})
+                    return JsonResponse({'errno': 0, 'msg': '验证码失效，请重新获取'})
             else:
-                return JsonResponse({'errno': 1007, 'msg': '验证码错误'})
+                return JsonResponse({'errno': 0, 'msg': '验证码错误'})
         else:
-            return JsonResponse({'errno': 1009, 'msg': '该账户没有获取验证码'})
+            return JsonResponse({'errno': 0, 'msg': '该账户没有获取验证码'})
 
-        # uid = request.POST.get('id')
-        # user = User.objects.get(uid=uid)
         user = request.user
         user.email = email
         user.save()
@@ -265,11 +268,16 @@ def change_email(request):
 @validate_login
 def create_follow(request):
     if request.method == 'POST':
-        following_id = request.POST.get('following_id')
-        # follower_id = request.POST.get('id')
-        follower_id = request.user.uid
+        following_id = request.POST.get('following_id')  # 这里传入参数改成user.id
+        try:
+            User.objects.get(id=following_id)
+        except User.DoesNotExist:
+            return JsonResponse({'errno': 0, 'msg': "用户不存在"})
+        follower_id = request.user.id
+        follower_user = request.user.username
         follow = Follow(follower_id=follower_id, following_id=following_id)
         follow.save()
+        send_sys_notification('系统通知', following_id, f'{follower_user}关注了你')
         resp = {'follower': follower_id, 'following': following_id, 'errno': 0, 'msg': '关注成功'}
         return JsonResponse(resp)
     else:
@@ -280,8 +288,8 @@ def create_follow(request):
 @validate_login
 def remove_follow(request):
     if request.method == 'POST':
-        following_id = request.POST.get('following_id')
-        follower_id = request.user.uid
+        following_id = request.POST.get('following_id')  # 传入参数改成user.id
+        follower_id = request.user.id
         follow = Follow.objects.get(follower_id=follower_id, following_id=following_id)
         follow.delete()
         resp = {'follower': follower_id, 'following': following_id, 'errno': 0, 'msg': '取关成功'}
@@ -295,17 +303,12 @@ def remove_follow(request):
 def get_followings(request):
     if request.method == 'GET':
         following_list = []
-        uid = request.user.uid
-        if Follow.objects.filter(follower_id=uid).exists():
-            followings = Follow.objects.filter(follower_id=uid)
+        user_id = request.user.id
+        if Follow.objects.filter(follower_id=user_id).exists():
+            followings = Follow.objects.filter(follower_id=user_id)
             for following in followings:
-                following_user = User.objects.get(uid=following.following_id)
-                following_data = {
-                    'username': following_user.username,
-                    'avatar': following_user.avatar_url,
-                    'following_id': following.following_id,
-                    'follow_time': following.created_at
-                }
+                following_user = User.objects.get(id=following.following_id)
+                following_data = User.to_simple_dict(following_user)
                 following_list.append(following_data)
             return JsonResponse({'errno': 0, 'msg': "关注列表查询成功", 'data': following_list})
         else:
@@ -319,17 +322,12 @@ def get_followings(request):
 def get_followers(request):
     if request.method == 'GET':
         follower_list = []
-        uid = request.user.uid
-        if Follow.objects.filter(following_id=uid).exists():
-            followers = Follow.objects.filter(following_id=uid)
+        user_id = request.user.id
+        if Follow.objects.filter(following_id=user_id).exists():
+            followers = Follow.objects.filter(following_id=user_id)
             for follower in followers:
-                follower_user = User.objects.get(uid=follower.follower_id)
-                follower_data = {
-                    'username': follower_user.username,
-                    'avatar': follower_user.avatar_url,
-                    'following_id': follower.follower_id,
-                    'follow_time': follower.created_at
-                }
+                follower_user = User.objects.get(id=follower.follower_id)
+                follower_data = User.to_simple_dict(follower_user)
                 follower_list.append(follower_data)
             return JsonResponse({'errno': 0, 'msg': "粉丝列表查询成功", 'data': follower_list})
         else:
@@ -395,14 +393,44 @@ def get_favlist(request):
     if request.method == 'GET':
         favorite_id = request.GET.get('favorite_id')
         video_list = []
+        try:
+            Favorite.objects.get(id=favorite_id)
+        except Favorite.DoesNotExist:
+            return JsonResponse({'errno': 0, 'msg': "收藏夹不存在", 'data': video_list})
+
         if Favlist.objects.filter(favorite_id=favorite_id).exists():
             favlists = Favlist.objects.filter(favorite_id=favorite_id)
             for favlist in favlists:
-                video = Video.objects.get(video_id=favlist.video_id)
-                video_data = Video.to_simple_dect(video)
+                video = Video.objects.get(id=favlist.video_id)
+                video_data = Video.to_simple_dict(video)
                 video_list.append(video_data)
             return JsonResponse({'errno': 0, 'msg': "收藏列表查询成功", 'data': video_list})
         else:
-            return JsonResponse({'errno': 0, 'msg': "收藏列表为空", 'data': video_list})
+            return JsonResponse({'errno': 0, 'msg': "收藏夹为空", 'data': video_list})
+
+    else:
+        return JsonResponse({'errno': 0, 'msg': "请求方法错误"})
+
+
+@csrf_exempt
+@validate_login
+def delete_favorite(request):
+    if request.method == 'POST':
+        favorite_id = request.GET.get('favorite_id')
+        try:
+            favorite = Favorite.objects.get(id=favorite_id)
+        except Favorite.DoesNotExist:
+            return JsonResponse({'errno': 0, 'msg': "收藏夹不存在"})
+        user_id = favorite.user_id
+        if user_id != request.user.id:   # 最好是进别人的主页不显示删除按钮
+            return JsonResponse({'errno': 0, 'msg': "没有操作权限"})
+
+        if Favlist.objects.filter(favorite_id=favorite_id).exists():
+            favlists = Favlist.objects.filter(favorite_id=favorite_id)
+            for favlist in favlists:
+                favlist.delete()
+        favorite = Favorite.objects.get(id=favorite_id)
+        favorite.delete()
+        return JsonResponse({'errno': 0, 'msg': "收藏夹删除成功"})
     else:
         return JsonResponse({'errno': 0, 'msg': "请求方法错误"})

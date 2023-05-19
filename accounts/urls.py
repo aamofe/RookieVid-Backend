@@ -2,7 +2,7 @@ from django.urls import path
 from .views import *
 
 urlpatterns = [
-    path('sendvcode', send_mail_vcode),
+    path('send_vcode', send_vcode),
     # path('validatevacode', validate_mail_vcode),
     path('register', register),
     path('login', login),
@@ -19,4 +19,5 @@ urlpatterns = [
     path('get_videos', get_videos),
     path('get_favorites', get_favorites),
     path('get_favlist', get_favlist),
+    path('delete_favorite', delete_favorite),
 ]
