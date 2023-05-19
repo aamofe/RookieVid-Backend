@@ -8,6 +8,7 @@ from django.db import models
 from django.core import serializers
 import datetime
 from accounts.models import User
+from super_admin.models import Complain
 from videos.cos_utils import get_cos_client
 from videos.models import Video, Like, Comment, Reply, Favorite, Favlist
 from random import sample
@@ -247,9 +248,10 @@ def search(request):
         if not keyword:
             return JsonResponse({'errno': 0, 'msg': '关键字不能为空'})
         # 使用 Q 对象进行模糊查询
-        query = Q(title__icontains=keyword) | Q(description__icontains=keyword)
-        videos = Video.objects.filter(query)
-        users=User.objects.filter(query)
+        query_video = Q(title__icontains=keyword) | Q(description__icontains=keyword)
+        videos = Video.objects.filter(query_video)
+        query_user = Q(username__icontains=keyword) | Q(signature__icontains=keyword)
+        users=User.objects.filter(query_user)
         video_list = []
         user_list=[]
         for v in videos:
@@ -458,6 +460,7 @@ def create_favorite(request):
         # 获取请求中传入的参数
         user = request.user
         user_id=user.id
+        print('hah',user_id)
         title = request.POST.get('title')
         description = request.POST.get('description')
         status =int(request.POST.get('status'))
@@ -510,29 +513,68 @@ def favorite_video(request):
         user = request.user
         user_id = user.id
         video_id=request.POST.get('video_id')
-        favorite_list=request.POST.get('favorite_list')
-
+        favorite_list=request.POST.getlist('favorite_list',[])
+        print(len(favorite_list))
         try:
             video=Video.objects.get(id=video_id)
-            res, my_favorite_list = get_favorite_method(user_id=user_id, video_id=video_id)
-            if res == -1:
-                return JsonResponse({'errno': 0, 'msg': "收藏夹不存在！"})
             for f_id in favorite_list : #添加收藏
+                try:
+                    favorite=Favorite.objects.get(id=f_id,user_id=user_id)
+                except:
+                    return JsonResponse({'errno': 0, 'msg': "收藏夹不属于用户！"})
                 try :
                     favlist=Favlist.objects.get(favorite_id=f_id,video_id=video_id)
                 except Favlist.DoesNotExist:
-                    favlist=Favlist(favorite_id=f_id,video_id=video_id,created_at=datetime.datetime.now())
+                    favlist=Favlist(user_id=user_id,favorite_id=f_id,video_id=video_id,created_at=datetime.datetime.now())
                     favlist.save()
-            for myf in my_favorite_list:#判断是否需要取消收藏
-                if myf['favorited']==1 and myf['id'] not in favorite_list:
-                    favlist = Favlist.objects.get(favorite_id=myf['id'], video_id=video_id)
-                    favlist.delete()
+            favorites=Favorite.objects.filter(user_id=user_id)
+            for f in favorites:#取消收藏
+                #print("???",type(f.id),type(favorite_list[0]))
+                if str(f.id) not in favorite_list :
+                    try :
+                        favorite=Favlist.objects.get(favorite_id=f.id,video_id=video_id)
+                        favorite.delete()
+                    except Favlist.DoesNotExist:
+                        pass
             return JsonResponse({'errno': 0, 'msg': "收藏成功！"})
         except Video.DoesNotExist:
             return JsonResponse({'errno': 0, 'msg': "视频不存在！"})
     else:
         return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
 
+
+@validate_login
+def is_complaint(request):
+    if request.method=='GET':
+        user=request.user
+        video_id=request.POST.get('video_id')
+        created_at=datetime.datetime.now()
+        try:
+            complain=Complain.objects.get(video_id=video_id,user_id=user.id)
+            if (complain.created_at-created_at).seconds<3600:
+                return JsonResponse({'errno': 0,'is_complaint':1, 'msg': "投诉间隔小于1小时！"})
+            else:
+                return JsonResponse({'errno': 0, 'is_complaint': 0, 'msg': "可以投诉！"})
+        except Complain.DoesNotExist:
+            return JsonResponse({'errno': 0,'is_complaint':0, 'msg': "可以投诉！"})
+@validate_login
+def complain_video(request):
+    if request.method=='POST':
+        user=request.user
+        video_id=request.POST.get('video_id')
+        content=request.POST.get('content')
+        created_at=datetime.datetime.now()
+        try :
+            video=Video.objects.get(id=video_id)
+            if len(content)==0:
+                return JsonResponse({'errno': 0, 'msg': "投诉原因不能为空！"})
+            complain = Complain(video_id=video_id, user_id=user.id, content=content, created_at=created_at)
+            complain.save()
+            return JsonResponse({'errno': 0, 'msg': "投诉成功！"})
+        except Video.DoesNotExist:
+            return JsonResponse({'errno': 0, 'msg': "视频不存在！"})
+    else:
+        return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
 
 
 

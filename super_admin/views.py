@@ -1,6 +1,8 @@
 from django.http import JsonResponse
 from django.shortcuts import render
 
+from notifications.views import send_sys_notification
+from super_admin.models import Complain
 from videos.models import Video
 
 
@@ -21,32 +23,78 @@ def get_review_video(request):
 def review_video(request):
     if request.method=='POST':
         video_id=request.POST.get('video_id')
-
-        review_status=request.POST.get('review_status')
+        res=request.POST.get('res')
         reason=request.POST.get('reason')
         try:
             video=Video.objects.get(video_id=video_id)
             user_id=video.user_id
-            if review_status==0:#审核不通过
-                #发送消息到user
-                user_id=1#乱写的，防止乱码
+            if res==0 :#审核不通过
+                try :#判断是否被投诉过
+                    complain=Complain.objects.filter(video_id=video_id)
+                    for c in complain:
+                        if c.is_message_sent==0:
+                            send_sys_notification('系统',c.user_id,f"你投诉视频名称为f'{video.title}',已成功，平台已下架该视频")
+                            c.is_message_sent=1
+                            c.status=1
+                            c.save()
+                    video.delete()
+                except Complain.DoesNotExist:
+                    pass
+                send_sys_notification('系统',video.user_id,"审核不通过")
             else:
-                video.reviewed_status=review_status
+                video.reviewed_status=res
+                video.save()
+                try :#判断是否被投诉过
+                    complain=Complain.objects.filter(video_id=video_id)
+                    for c in complain:
+                        if c.is_message_sent==0:
+                            send_sys_notification('系统',c.user_id,f"你投诉视频名称为f'{video.title}'失败，平台平台未察觉到相关因素")
+                            c.is_message_sent=1
+                            c.status=1
+                            c.save()
+                except Complain.DoesNotExist:
+                    pass
+                send_sys_notification('系统', video.user_id, "审核通过")
                 return JsonResponse({'errno': 0, 'msg': "审核通过！"})
         except Video.DoesNotExist:
             return JsonResponse({'errno': 0, 'msg': "视频不存在！"})
+    else:
+        return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
 def review_complaint_video(request):
     if request.method == 'POST':
         user_id = request.POST.get('user_id')
         video_id = request.POST.get('video_id')
-def get_review_video_list(request):
-    if request.method == 'GET':
-        return 0
+        op=request.POST.get('op')
+        try:
+            video=Video.objects.get(id=video_id)
+            if op=='重审':
+                video.reviewed_status=0
+                video.save()
+            elif op=='删除':
+                video.delete()
+            else :
+                return JsonResponse({'errno': 0, 'msg': "操作错误！"})
+        except Video.DoesNotExist:
+            return JsonResponse({'errno': 0, 'msg': "视频不存在！"})
+    else:
+        return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
 
 
 def get_complaint_video_(request):
     if request.method == 'GET':
-        user_id = request.POST.get('user_id')
-        video_id = request.POST.get('video_id')
+        try:
+            complains=Complain.objects.filter(status=0)
+            video_list=[]
+            for c in complains:
+                video_id=c.video_id
+                try:
+                    video=Video.objects.get(video_id)
+                    video_list.append(video.to_simple_dict())
+                except:
+                    pass
+        except Complain.DoesNotExist:
+            return JsonResponse({'errno': 0, 'msg': "没有投诉视频！"})
+    else:
+        return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
 
 

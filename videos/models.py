@@ -22,6 +22,7 @@ class Favlist(models.Model):
     favorite_id = models.IntegerField(verbose_name='收藏夹编号', default=0)
     video_id = models.IntegerField(verbose_name='收藏视频ID',null=True )
     created_at = models.DateTimeField(verbose_name='收藏视频时间', null=True,auto_now_add=True)
+    user_id = models.IntegerField(verbose_name='所属用户', null=True)
     def to_dict(self):
         return {
             'id':self.id,
@@ -65,6 +66,7 @@ class Video(models.Model):
             'fav_amount': self.fav_amount,
             'like_amount': self.like_amount,
             'comment_amount': self.comment_amount,
+            'user_name': user.username,
         }
     def to_dict(self):
         user=User.objects.get(id=self.user_id)
