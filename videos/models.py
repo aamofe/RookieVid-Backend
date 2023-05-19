@@ -10,6 +10,13 @@ class Like(models.Model):
     created_at=models.DateTimeField(verbose_name='点赞时间', auto_now_add=True)
     class Meta:
         app_label = 'videos'
+    def to_dict(self):
+        return {
+            'id':self.id,
+            'user_id':self.user_id,
+            'video_id':self.video_id,
+            'created_at':self.created_at,
+        }
 
 class Favlist(models.Model):
     favorite_id = models.IntegerField(verbose_name='收藏夹编号', default=0)
@@ -17,6 +24,7 @@ class Favlist(models.Model):
     created_at = models.DateTimeField(verbose_name='收藏视频时间', null=True,auto_now_add=True)
     def to_dict(self):
         return {
+            'id':self.id,
             'favorite_id':self.favorite_id,
             'video_id':self.video_id,
         }
@@ -142,6 +150,7 @@ class Favorite(models.Model):
     created_at = models.DateTimeField(verbose_name='创建收藏夹时间',null=True, auto_now_add=True)
     def to_dict(self):
         return {
+            'id':self.id,
             'title':self.title,
             'description':self.description,
             'status':self.status,
