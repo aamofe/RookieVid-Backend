@@ -14,7 +14,7 @@ from random import sample
 from django.contrib.auth.models import AnonymousUser
 # 视频分类标签
 LABELS = ['娱乐', '军事', '生活', '音乐', '学习', '科技', '运动', '游戏', '影视', '美食']
-
+@validate_all
 def get_video_by_label(request):
     if request.method == 'GET':
         label = request.GET.get('label')
@@ -36,7 +36,7 @@ def get_video_by_label(request):
     else:
         return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
 
-
+@validate_all
 def get_video_by_hotness(request):
     if request.method == 'GET':
         # 构建热度计算表达式
@@ -61,7 +61,7 @@ def get_video_by_hotness(request):
         return JsonResponse({'errno': 0, 'msg': "返回成功！", 'video': video_list}, safe=False)
     else:
         return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
-
+@validate_all
 def get_related_video(request):
     if request.method == 'GET':
         video_id=request.GET.get('video_id')
@@ -128,6 +128,7 @@ def upload_photo_method(photo_file, photo_id):
     return photo_url
 
 @csrf_exempt
+@validate_login
 def upload_video(request):
     if request.method == 'POST':
         # 获取上传的视频和封面文件
@@ -161,7 +162,7 @@ def upload_video(request):
         return JsonResponse({'errno': 0, 'msg': "上传成功"})
     else:
         return JsonResponse({'errno':0, 'msg': "请求方法错误！"})
-
+@validate_login
 def delete_video(request):
     if request.method == 'POST':
         # 获取操作类型和视频ID
@@ -178,7 +179,8 @@ def delete_video(request):
             return JsonResponse({'errno': 0, 'msg': '视频不存在'})
     else:
         return JsonResponse({'errno': 0, 'msg': '请求方法不合法'})
-    
+
+@validate_login   
 def update_video(request):
     if request.method == 'POST':
         user=request.user
@@ -223,7 +225,7 @@ def update_video(request):
     else:
         return JsonResponse({'errno': 0, 'msg': '请求方法不合法'})
     
-
+@validate_login
 def get_video(request):
     if request.method == 'GET':
         user=request.user
@@ -238,7 +240,7 @@ def get_video(request):
             return JsonResponse({'errno': 0, 'msg': '没有上传稿件'})
     else:
         return JsonResponse({'errno': 0, 'msg': '请求方法不合法'})
-
+@validate_all
 def search(request):
     if request.method == 'GET':
         keyword = request.GET.get('keyword')
@@ -300,7 +302,9 @@ def view_video(request):
 
     else:
         return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
+    
 @csrf_exempt
+@validate_login
 def comment_video(request):
     if request.method == 'POST':
         user = request.user
@@ -326,7 +330,7 @@ def comment_video(request):
             return JsonResponse({'errno': 0, 'msg': '视频不存在'})
     else:
         return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
-
+@validate_login
 def delete_comment(request):
     if request.method=='POST':
         user=request.user
@@ -355,6 +359,7 @@ def delete_comment(request):
     else:
         return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
 @csrf_exempt
+@validate_login
 def reply_comment(request):
     if request.method == 'POST':
         # 获取请求中传入的参数
@@ -382,6 +387,7 @@ def reply_comment(request):
             return JsonResponse({'errno': 0, 'msg': '评论不存在'})
     else:
         return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
+@validate_login
 def delete_reply(request):
     if request.method=='POST':
         user=request.user
@@ -414,6 +420,7 @@ def delete_reply(request):
         return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
 
 @csrf_exempt
+@validate_login
 def like_video(request):
     if request.method == 'POST':
         # 获取请求中传入的参数
@@ -445,7 +452,7 @@ def like_video(request):
             return JsonResponse({'errno': 0, 'msg': "视频不存在！"})
     else:
         return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
-
+@validate_login
 def create_favorite(request):
     if request.method == 'POST':
         # 获取请求中传入的参数
@@ -468,7 +475,7 @@ def create_favorite(request):
             return JsonResponse({'errno': 0, 'msg': "创建收藏夹成功！"})
     else:
         return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
-
+@validate_login
 def get_favorite(request):#判断是否已收藏
     if request.method == 'GET':
         user=request.user
@@ -481,6 +488,7 @@ def get_favorite(request):#判断是否已收藏
             return JsonResponse({'errno': 0, 'msg': "无收藏夹，请创建收藏夹！"})
     else:
          return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
+
 def get_favorite_method(user_id,video_id):
     favorite_list = []
     try :
@@ -496,6 +504,7 @@ def get_favorite_method(user_id,video_id):
         return 0,favorite_list
     except Favorite.DoesNotExist:
         return -1,favorite_list
+@validate_login
 def favorite_video(request):
     if request.method == 'POST':
         user = request.user
