@@ -21,4 +21,5 @@ urlpatterns = [
     path('api/account/',include(('accounts.urls','accounts'))),
     path('api/videos/',include(('videos.urls','videos'))),
     path('api/super_admin/',include(('super_admin.urls','super_admin'))),
+    path('api/notification/',include(('notifications.urls','notifications'))),
 ]

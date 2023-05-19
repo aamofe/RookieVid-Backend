@@ -14,6 +14,16 @@ class User(models.Model):
     created_at = models.DateTimeField('创建时间', auto_now_add=True)
     status = models.IntegerField('状态', default=0)
 
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'username': self.username,
+            'uid': self.uid,
+            'email': self.email,
+            'avatar_url': self.avatar_url,
+            'signature': self.signature
+        }
+
 
 class Follow(models.Model):
     follower_id = models.CharField('粉丝ID', max_length=10)  # 因为用户ID有10位，用integer可能超范围，也可以改成biginteger

@@ -21,34 +21,37 @@ from django.utils import timezone
 # 发送验证码
 @csrf_exempt
 def send_mail_vcode(request):
-    to_email = request.POST.get("email")
-    print("to_email : ", to_email)
-    if re.match('\w+@\w+.\w+', str(to_email)) is None:
-        return JsonResponse({'errno': 1004, 'msg': "邮箱格式错误"})
-    # 获取当前时间
-    now_time = timezone.now()
-    # 获取上次发送邮件的时间
-    if Vcode.objects.filter(to_email=to_email).exists():
-        codes = Vcode.objects.filter(to_email=to_email)
-        for vcode in codes:
-            if (now_time - vcode.send_at).seconds < 60:  # 1分钟内不能重复发送邮件
-                return JsonResponse({'errno': 1005, 'msg': "操作过于频繁，请稍后再试"})
-    # 随机生成一个新的验证码
-    code = str(random.randint(10 ** 5, 10 ** 6 - 1))
-    while Vcode.objects.filter(vcode=code).exists():
+    if request.method == 'POST':
+        to_email = request.POST.get("email")
+        print("to_email : ", to_email)
+        if re.match('\w+@\w+.\w+', str(to_email)) is None:
+            return JsonResponse({'errno': 1004, 'msg': "邮箱格式错误"})
+        # 获取当前时间
+        now_time = timezone.now()
+        # 获取上次发送邮件的时间
+        if Vcode.objects.filter(to_email=to_email).exists():
+            codes = Vcode.objects.filter(to_email=to_email)
+            for vcode in codes:
+                if (now_time - vcode.send_at).seconds < 60:  # 1分钟内不能重复发送邮件
+                    return JsonResponse({'errno': 1005, 'msg': "操作过于频繁，请稍后再试"})
+        # 随机生成一个新的验证码
         code = str(random.randint(10 ** 5, 10 ** 6 - 1))
-    EMAIL_FROM = "1151801165@qq.com"  # 邮箱来自
-    email_title = '邮箱激活'
-    email_body = "您的邮箱注册验证码为：{}, 该验证码有效时间为5分钟，请及时进行验证。".format(code)
-    send_errno = send_mail(email_title, email_body, EMAIL_FROM, [to_email])
-    if send_errno == 1:
-        # 存储验证码
-        new_vcode = Vcode(vcode=code, to_email=to_email)
-        new_vcode.save()
-        return JsonResponse({'errno': 1000, 'msg': '验证码已发送，请查阅'})
+        while Vcode.objects.filter(vcode=code).exists():
+            code = str(random.randint(10 ** 5, 10 ** 6 - 1))
+        EMAIL_FROM = "1151801165@qq.com"  # 邮箱来自
+        email_title = '邮箱激活'
+        email_body = "您的邮箱注册验证码为：{}, 该验证码有效时间为5分钟，请及时进行验证。".format(code)
+        send_errno = send_mail(email_title, email_body, EMAIL_FROM, [to_email])
+        if send_errno == 1:
+            # 存储验证码
+            new_vcode = Vcode(vcode=code, to_email=to_email)
+            new_vcode.save()
+            return JsonResponse({'errno': 1000, 'msg': '验证码已发送，请查阅'})
+        else:
+            return JsonResponse(
+                {'from': EMAIL_FROM, 'to': to_email, 'errno': 1006, 'msg': "验证码发送失败，请检查邮箱地址"})
     else:
-        return JsonResponse(
-            {'from': EMAIL_FROM, 'to': to_email, 'errno': 1006, 'msg': "验证码发送失败，请检查邮箱地址"})
+        return JsonResponse({'error': 0, 'msg': "请求方式错误"})
 
 
 # 先验证验证码是否正确，若正确检验用户名密码是否合法，完成注册
@@ -103,8 +106,7 @@ def register(request):
             new_user.save()  # 一定要save才能保存到数据库中
             return JsonResponse({'uid': uid, 'errno': 0, 'msg': "注册成功"})
     else:
-        return JsonResponse({'error': 1, 'msg': "请求方式错误"})
-        # return render(request, 'register.html', {})
+        return JsonResponse({'error': 0, 'msg': "请求方式错误"})
 
 
 @csrf_exempt
@@ -128,8 +130,7 @@ def login(request):
         else:
             return JsonResponse({'errno': 1012, 'msg': "密码错误"})
     else:
-        return JsonResponse({'error': 1, 'msg': "请求方式错误"})
-        # return render(request, 'login.html', {})
+        return JsonResponse({'error': 0, 'msg': "请求方式错误"})
 
 
 @csrf_exempt
@@ -165,16 +166,10 @@ def display_profile(request):
     # 如果用户已登录，展示用户信息
     if request.method == 'GET':
         user = request.user
-        context = {
-            'username': user.username,
-            'uid': user.uid,
-            'email': user.email,
-            'avatar_url': user.avatar_url,
-            'signature': user.signature
-        }
+        context = User.to_dict(user)
         return JsonResponse({'context': context, 'errno': 0, 'msg': '查询用户信息成功'})
     else:
-        return JsonResponse({'errno': 1, 'msg': "请求方式错误"})
+        return JsonResponse({'errno': 0, 'msg': "请求方式错误"})
 
 
 @csrf_exempt
@@ -192,7 +187,7 @@ def edit_profile(request):
         user.save()
         return JsonResponse({'errno': 0, 'msg': "用户资料修改成功"})
     else:
-        return JsonResponse({'error': 1, 'msg': "请求方式错误"})
+        return JsonResponse({'error': 0, 'msg': "请求方式错误"})
 
 
 @csrf_exempt
@@ -206,7 +201,7 @@ def edit_avatar(request):
         user.save()
         return JsonResponse({'errno': 0, 'msg': "头像上传成功"})
     else:
-        return JsonResponse({'errno': 1, 'msg': "请求方式错误"})
+        return JsonResponse({'errno': 0, 'msg': "请求方式错误"})
 
 
 @csrf_exempt
@@ -229,7 +224,7 @@ def change_password(request):
         user.save()
         return JsonResponse({'errno': 0, 'msg': "密码修改成功"})
     else:
-        return JsonResponse({'errno': 1, 'msg': "请求方式错误"})
+        return JsonResponse({'errno': 0, 'msg': "请求方式错误"})
 
 
 @csrf_exempt
@@ -263,7 +258,7 @@ def change_email(request):
         user.save()
         return JsonResponse({'errno': 0, 'msg': '绑定邮箱修改成功'})
     else:
-        return JsonResponse({'errno': 1, 'msg': "请求方式错误"})
+        return JsonResponse({'errno': 0, 'msg': "请求方式错误"})
 
 
 @csrf_exempt
@@ -278,7 +273,7 @@ def create_follow(request):
         resp = {'follower': follower_id, 'following': following_id, 'errno': 0, 'msg': '关注成功'}
         return JsonResponse(resp)
     else:
-        return JsonResponse({'errno': 1, 'msg': "请求方式错误"})
+        return JsonResponse({'errno': 0, 'msg': "请求方式错误"})
 
 
 @csrf_exempt
@@ -292,7 +287,7 @@ def remove_follow(request):
         resp = {'follower': follower_id, 'following': following_id, 'errno': 0, 'msg': '取关成功'}
         return JsonResponse(resp)
     else:
-        return JsonResponse({'errno': 1, 'msg': "请求方式错误"})
+        return JsonResponse({'errno': 0, 'msg': "请求方式错误"})
 
 
 @csrf_exempt
@@ -316,7 +311,7 @@ def get_followings(request):
         else:
             return JsonResponse({'errno': 0, 'msg': "关注列表为空", 'data': following_list})
     else:
-        return JsonResponse({'errno': 1, 'msg': "请求方法错误"})
+        return JsonResponse({'errno': 0, 'msg': "请求方法错误"})
 
 
 @csrf_exempt
@@ -340,7 +335,7 @@ def get_followers(request):
         else:
             return JsonResponse({'errno': 0, 'msg': "粉丝列表为空", 'data': follower_list})
     else:
-        return JsonResponse({'errno': 1, 'msg': "请求方法错误"})
+        return JsonResponse({'errno': 0, 'msg': "请求方法错误"})
 
 
 @csrf_exempt
@@ -352,13 +347,13 @@ def get_videos(request):
         if Video.objects.filter(user_id=user_id).exists():
             videos = Video.objects.filter(user_id=user_id)
             for video in videos:
-                video_data = Video.to_dict(video)
+                video_data = Video.to_simple_dict(video)
                 video_list.append(video_data)
             return JsonResponse({'errno': 0, 'msg': "投稿列表查询成功", 'data': video_list})
         else:
             return JsonResponse({'errno': 0, 'msg': "投稿列表为空", 'data': video_list})
     else:
-        return JsonResponse({'errno': 1, 'msg': "请求方法错误"})
+        return JsonResponse({'errno': 0, 'msg': "请求方法错误"})
 
 
 @csrf_exempt
@@ -372,11 +367,7 @@ def get_favorites(request):
             if Favorite.objects.filter(user_id=uid).exists():
                 favorites = Favorite.objects.filter(user_id=uid)
                 for favorite in favorites:
-                    favorite_data = {
-                        'title': favorite.title,
-                        'description': favorite.description,
-                        'status': favorite.status
-                    }
+                    favorite_data = Favorite.to_dict(favorite)
                     favorite_list.append(favorite_data)
                 return JsonResponse({'errno': 0, 'msg': "收藏夹列表查询成功", 'data': favorite_list})
             else:
@@ -386,10 +377,7 @@ def get_favorites(request):
                 favorites = Favorite.objects.filter(user_id=user_id)
                 for favorite in favorites:
                     if favorite.status == 0:
-                        favorite_data = {
-                            'title': favorite.title,
-                            'description': favorite.description,
-                        }
+                        favorite_data = Favorite.to_dict(favorite)
                         favorite_list.append(favorite_data)
                 if len(favorite_list) == 0:
                     return JsonResponse({'errno': 0, 'msg': "收藏夹列表为空", 'data': favorite_list})
@@ -398,7 +386,7 @@ def get_favorites(request):
             else:
                 return JsonResponse({'errno': 0, 'msg': "收藏夹列表为空", 'data': favorite_list})
     else:
-        return JsonResponse({'errno': 1, 'msg': "请求方法错误"})
+        return JsonResponse({'errno': 0, 'msg': "请求方法错误"})
 
 
 @csrf_exempt
@@ -407,14 +395,14 @@ def get_favlist(request):
     if request.method == 'GET':
         favorite_id = request.GET.get('favorite_id')
         video_list = []
-        if Favorite.objects.filter(favorite_id=favorite_id).exists():
-            favorites = Favorite.objects.filter(favorite_id=favorite_id)
-            for favorite in favorites:
-                video = Video.objects.get(video_id = favorite.video_id)
-                video_data = Video.to_dect(video)
+        if Favlist.objects.filter(favorite_id=favorite_id).exists():
+            favlists = Favlist.objects.filter(favorite_id=favorite_id)
+            for favlist in favlists:
+                video = Video.objects.get(video_id=favlist.video_id)
+                video_data = Video.to_simple_dect(video)
                 video_list.append(video_data)
-            return JsonResponse({'errno': 0, 'msg': "收藏列表查询成功", 'data':video_list})
+            return JsonResponse({'errno': 0, 'msg': "收藏列表查询成功", 'data': video_list})
         else:
             return JsonResponse({'errno': 0, 'msg': "收藏列表为空", 'data': video_list})
     else:
-        return JsonResponse({'errno': 1, 'msg': "请求方法错误"})
+        return JsonResponse({'errno': 0, 'msg': "请求方法错误"})
