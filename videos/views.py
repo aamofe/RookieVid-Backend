@@ -568,7 +568,7 @@ def complain_video(request):
             video=Video.objects.get(id=video_id)
             if len(content)==0:
                 return JsonResponse({'errno': 0, 'msg': "投诉原因不能为空！"})
-            complain = Complain(video_id=video_id, user_id=user.id, content=content, created_at=created_at)
+            complain = Complain(video_id=video_id, user_id=user.id, reason=content, created_at=created_at,status=0)
             complain.save()
             return JsonResponse({'errno': 0, 'msg': "投诉成功！"})
         except Video.DoesNotExist:

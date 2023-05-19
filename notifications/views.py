@@ -18,7 +18,7 @@ def send_notification(request):
         return JsonResponse({'error': 1, 'msg': "请求方式错误"})
 
 def send_sys_notification(send_to, send_from, content):
-    if User.objects.filter(uid=send_to).exists():
+    if User.objects.filter(id=send_to).exists():
         new_notification = Notification(send_from=send_from, send_to=send_to, content=content)
         new_notification.save()
         return True

@@ -19,4 +19,6 @@ urlpatterns=[
     path('delete_reply',delete_reply),
     path('get_related_video',get_related_video),
     path('get_video',get_video),
+    path('complain_video',complain_video),
+    path('is_complaint',is_complaint),
 ]
