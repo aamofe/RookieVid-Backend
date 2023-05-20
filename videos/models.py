@@ -45,13 +45,12 @@ class Video(models.Model):
     reviewed_status=models.IntegerField(verbose_name='审核状态',default=0) #0未审核 1审核通过 2需复核
 
     view_amount=models.IntegerField(verbose_name='播放量',default=0)
-    fav_amount=models.IntegerField(verbose_name='收藏量',default=0)
     like_amount=models.IntegerField(verbose_name='点赞数',default=0)
-    comment_amount=models.IntegerField(verbose_name='总评论数',default=0)
     class Meta:
         app_label = 'videos'
     def to_simple_dict(self):
         user = User.objects.get(id=self.user_id)
+        fav_amount = len(Favlist.objects.filter(video_id=self.id).values('user_id').distinct())
         return {
             'id': self.id,
             'label': self.label,
@@ -63,14 +62,13 @@ class Video(models.Model):
             'reviewed_at': self.reviewed_at,
             'reviewed_status': self.reviewed_status,
             'view_amount': self.view_amount,
-            'fav_amount': self.fav_amount,
+            'fav_amount':fav_amount,
             'like_amount': self.like_amount,
-            'comment_amount': self.comment_amount,
             'user_name': user.username,
         }
     def to_dict(self):
         user=User.objects.get(id=self.user_id)
-        
+        fav_amount = len(Favlist.objects.filter(video_id=self.id).values('user_id').distinct())
         follower=Follow.objects.filter(following_id=user.id)
         return {
             'id':self.id,
@@ -83,9 +81,8 @@ class Video(models.Model):
             'reviewed_at':self.reviewed_at,
             'reviewed_status':self.reviewed_status,
             'view_amount':self.view_amount,
-            'fav_amount':self.fav_amount,
+            'fav_amount':fav_amount,
             'like_amount':self.like_amount,
-            'comment_amount':self.comment_amount,
             'user_id': self.user_id,
             'user_name': user.username,
             'avatar_url':user.avatar_url,
@@ -101,7 +98,6 @@ class Comment(models.Model):
     video_id = models.IntegerField(verbose_name='被评论的视频ID',null=True )
     content=models.CharField(verbose_name='评论内容',max_length=255)
     created_at = models.DateTimeField(verbose_name='评论时间',auto_now_add=True)
-    reply_amount = models.IntegerField(verbose_name='总点赞数', default=0)
     class Meta:
         app_label = 'videos'
     def to_dict(self):
@@ -118,7 +114,7 @@ class Comment(models.Model):
             'content':self.content,
             'created_at':self.created_at,
             'reply':reply_list,
-            'reply_amount':self.reply_amount,
+            'reply_amount':len(reply_list),
         }
 
 class Reply(models.Model):
