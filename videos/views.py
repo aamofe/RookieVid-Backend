@@ -41,6 +41,7 @@ def get_video_by_label(request):
 def get_video_by_hotness(request):
     if request.method == 'GET':
         # 构建热度计算表达式
+        num=int(request.GET.get('num'))
         hotness_expression = ExpressionWrapper(
             Count('like_amount') + F('view_amount') * 0.5,
             output_field=models.FloatField()
@@ -50,8 +51,8 @@ def get_video_by_hotness(request):
             hotness_score=hotness_expression
         ).order_by('-hotness_score', '-like_amount', '-view_amount', 'id')
         # 获取前6个视频
-        videos = videos[:20]
-        videos = sample(list(videos),6)
+        videos = videos[:(2*num)]
+        videos = sample(list(videos),num)
         # print("数量 : ",)
         video_list = []
         for video in videos:
