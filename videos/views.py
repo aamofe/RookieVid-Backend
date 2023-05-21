@@ -225,9 +225,11 @@ def upload_video(request):
         #上传视频
         if video_id == '' or video_id == 0:
             video_id = str(uuid.uuid4())
-        file_name = cover_file.name
+        file_name = video_file.name
         file_extension = file_name.split('.')[-1]  # 获取文件后缀
-        if not file_extension =='mp4':
+        print("ex :",file_extension)
+        if file_extension !='mp4':
+            video.delete()
             return JsonResponse({'errno': 1, 'msg': "视频格式不合法"})
         video_key = "video_file/{}".format(f'{video_id}.mp4')
 
@@ -266,57 +268,60 @@ def call_back(request):
         code = body.get("code")#错误码，值为0时表示审核成功，非0表示审核失败
         data = body.get("data")#视频审核结果的详细信息。
         JobId = data.get("JobId")
+        print('这里这里！！！ JobID',JobId)
         url = data.get("url")
         result = int(data.get("result"))
         porn_info = data.get("porn_info")#审核场景为涉黄的审核结果信息。
         # "hit_flag": 0 ,"label": "","count": 0
         ads_info=data.get("ads_info")
         label=''
-        if len(porn_info['label'])!=0:
+        if porn_info is not None and porn_info['label']:
             label+=porn_info['label']
-        if len(ads_info['label'])!=0:
+        if ads_info is not None and ads_info['label']:
             label+=porn_info['label']
-        video=Video.objects.get(JobId=JobId)
-        user_id = video.user_id
-        # 删除审核记录
-        video.JobId=None
-        video.save()
-        user=User.objects.get(id=video.user_id)
-        file_extension = video.cover_url.split('.')[-1]  # 获取文件后缀
-        cover_key = f"cover_file/{video.id}.{file_extension}"
-        video_key = "video_file/{}".format(f'{video.id}.mp4')
-        if result==0:#审核正常
-            video.reviewed_status=1#审核通过
-            #给up主发信息
-            title = "视频发布成功！"
-            content = "亲爱的" + user.username + '你好呀!\n' '视频审核通过啦，快和小伙伴分享分享你的视频叭~'
-            #create_message(user_id, title, content)
-            #给所有粉丝发信息
-            fan_list=Follow.objects.filter(following_id=user.id)
-            for fan in fan_list:
-                fan_id=fan.follower_id
-                title = "你关注的博主发布新视频啦！"
-                content = "亲爱的" + User.objects.get(id=fan_id).username + '你好呀!\n''你关注的博主发布新视频啦！快去看看，然后在评论区留下自己的感受叭~'
-                #create_message(fan_id, title, content)
-        elif result==1:
-            video.delete()
-            response = client.delete_object(
-                Bucket=bucket_name,
-                Key=cover_key
-            )
-            response = client.delete_object(
-                Bucket=bucket_name,
-                Key=video_key
-            )
-            title = "视频审核失败！"
-            content = "亲爱的" + user.username + ' 你好呀!\n视频内容好像带有一点' + label + '呢！\n下次不要再上传这类的视频了哟，这次就算了嘿嘿~'
-            # (user_id, title, content)
-            #给up主发信息
-        elif result==2:
-            #给up主发信息
-            title = "视频需要人工审核！"
-            content = "亲爱的" + user.username + ' 你好呀!\n视频内容好像带有一点' + label + '呢！\n我们需要人工再进行审核，不要着急哦~'
-            #发信息(user_id, title, content)
+        videos=Video.objects.filter(JobId=JobId)
+        for video in videos:
+            user_id = video.user_id
+            # 删除审核记录
+            video.JobId=None
+            video.save()
+            user=User.objects.get(id=video.user_id)
+            file_extension = video.cover_url.split('.')[-1]  # 获取文件后缀
+            cover_key = f"cover_file/{video.id}.{file_extension}"
+            video_key = "video_file/{}".format(f'{video.id}.mp4')
+            if result==0:#审核正常
+                video.reviewed_status=1#审核通过
+                video.save()
+                #给up主发信息
+                title = "视频发布成功！"
+                content = "亲爱的" + user.username + '你好呀!\n' '视频审核通过啦，快和小伙伴分享分享你的视频叭~'
+                #create_message(user_id, title, content)
+                #给所有粉丝发信息
+                fan_list=Follow.objects.filter(following_id=user.id)
+                for fan in fan_list:
+                    fan_id=fan.follower_id
+                    title = "你关注的博主发布新视频啦！"
+                    content = "亲爱的" + User.objects.get(id=fan_id).username + '你好呀!\n''你关注的博主发布新视频啦！快去看看，然后在评论区留下自己的感受叭~'
+                    #create_message(fan_id, title, content)
+            elif result==1:
+                video.delete()
+                response = client.delete_object(
+                    Bucket=bucket_name,
+                    Key=cover_key
+                )
+                response = client.delete_object(
+                    Bucket=bucket_name,
+                    Key=video_key
+                )
+                title = "视频审核失败！"
+                content = "亲爱的" + user.username + ' 你好呀!\n视频内容好像带有一点' + label + '呢！\n下次不要再上传这类的视频了哟，这次就算了嘿嘿~'
+                # (user_id, title, content)
+                #给up主发信息
+            elif result==2:
+                #给up主发信息
+                title = "视频需要人工审核！"
+                content = "亲爱的" + user.username + ' 你好呀!\n视频内容好像带有一点' + label + '呢！\n我们需要人工再进行审核，不要着急哦~'
+                #发信息(user_id, title, content)
         return JsonResponse({'errno': 1, 'result':result})
 @validate_login
 def delete_video(request):
