@@ -19,6 +19,7 @@ import random
 from django.utils import timezone
 from datetime import datetime, timedelta
 
+
 # Create your views here.
 
 # 发送验证码
@@ -127,8 +128,8 @@ def login(request):
             return JsonResponse({'errno': 0, 'msg': "请先注册"})
         if user.password == password:  # 判断请求的密码是否与数据库存储的密码相同
             # request.session['id'] = user.uid
-            payload = {'exp': datetime.utcnow()+timedelta(days=2), 'id': user.id}
-            encode = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256').decode()
+            payload = {'exp': datetime.utcnow() + timedelta(days=2), 'id': user.id}
+            encode = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
             # token = str(encode, encoding='utf-8')
             token = str(encode)
             print(encode)
@@ -171,9 +172,20 @@ def upload_photo_method(photo_file, photo_id):
 def display_profile(request):
     # 如果用户已登录，展示用户信息
     if request.method == 'GET':
+        user_id = request.GET.get('user_id')
         user = request.user
-        context = User.to_dict(user)
-        return JsonResponse({'context': context, 'errno': 0, 'msg': '查询用户信息成功'})
+        print(type(user_id))
+
+        if int(user_id) == user.id:  # 看自己的主页status是0，看别人的是1
+            context = User.to_dict(user)
+            return JsonResponse({'context': context, 'status': 0, 'errno': 0, 'msg': '查询用户信息成功'})
+        else:
+            try:
+                user = User.objects.get(id=user_id)
+                context = User.to_dict(user)
+                return JsonResponse({'context': context, 'status': 1, 'errno': 0, 'msg': '查询用户信息成功'})
+            except User.DoesNotExist:
+                return JsonResponse({'errno': 1018, 'msg': '用户不存在'})
     else:
         return JsonResponse({'errno': 0, 'msg': "请求方式错误"})
 
@@ -203,7 +215,7 @@ def edit_avatar(request):
     if request.method == 'POST':
         user = request.user
         avatar_file = request.FILES.get('avatar_file')
-        avatar_url = upload_photo_method(avatar_file, user.uid)  # 头像的命名还是用uid
+        avatar_url = upload_photo_method(avatar_file, user.id)  # 头像的命名改成id
         user.avatar_url = avatar_url
         user.save()
         return JsonResponse({'errno': 0, 'msg': "头像上传成功"})
@@ -277,7 +289,7 @@ def create_follow(request):
         follower_user = request.user.username
         follow = Follow(follower_id=follower_id, following_id=following_id)
         follow.save()
-        send_sys_notification('系统通知', following_id, f'{follower_user}关注了你')
+        send_sys_notification(follower_id, following_id, f'{follower_user}关注了你', 1, follower_id)
         resp = {'follower': follower_id, 'following': following_id, 'errno': 0, 'msg': '关注成功'}
         return JsonResponse(resp)
     else:
@@ -358,27 +370,24 @@ def get_videos(request):
 @validate_login
 def get_favorite(request):
     if request.method == 'GET':
-        status= request.GET.get('status')#为1访问别人的，但是也要注意 可能传入的id和自己相同
+        user_id = request.GET.get('user_id')
+        user = request.user
+        print(int(user_id) == user.id)
 
-        if status:#访问别人的
-            user_id = request.GET.get('user_id')
-            if not user_id:
-                return JsonResponse({'errno': 0, 'msg': "请输入用户ID！"})
-        else:
-            user = request.user
         try:
-            if status and user_id!=user.id:
-                favorite = Favorite.objects.filter(user_id=user_id,status=status)
+            if int(user_id) == user.id:  # 看自己的收藏夹
+                favorites = Favorite.objects.filter(user_id=user_id)
             else:
-                favorite = Favorite.objects.filter(user_id=user_id)
-            favorite_list=[]
-            for f in favorite:
-                favorite_list.append(f.to_dict())
-            return JsonResponse({'errno': 0, 'favorite':favorite_list,'msg': "获取收藏夹成功！"})
+                favorites = Favorite.objects.filter(user_id=user_id, status=0)
+            favorite_list = []
+            for favorite in favorites:
+                favorite_list.append(Favorite.to_dict(favorite))
+            return JsonResponse({'errno': 0, 'favorite': favorite_list, 'msg': "获取收藏夹成功"})
         except Favorite.DoesNotExist:
-             return JsonResponse({'errno': 0, 'msg': "无收藏夹，请创建收藏夹！"})
+            return JsonResponse({'errno': 1020, 'msg': "收藏夹不存在"})
+
     else:
-         return JsonResponse({'errno': 0, 'msg': "请求方法错误！"})
+        return JsonResponse({'errno': 1000, 'msg': "请求方法错误"})
 
 
 @csrf_exempt
@@ -416,7 +425,7 @@ def delete_favorite(request):
         except Favorite.DoesNotExist:
             return JsonResponse({'errno': 0, 'msg': "收藏夹不存在"})
         user_id = favorite.user_id
-        if user_id != request.user.id:   # 最好是进别人的主页不显示删除按钮
+        if user_id != request.user.id:  # 最好是进别人的主页不显示删除按钮
             return JsonResponse({'errno': 0, 'msg': "没有操作权限"})
 
         if Favlist.objects.filter(favorite_id=favorite_id).exists():
