@@ -9,18 +9,18 @@ def validate_login(func):
     def valid_per(request, *args, **kwargs):
         token = request.META.get('HTTP_Authorization'.upper())
         if not token:
-            return JsonResponse({'errno': 0, 'msg': "用户未登录，请先登录"})
+            return JsonResponse({'errno': 1016, 'msg': "用户未登录，请先登录"})
         token = token.replace('Bearer ', '')
         try:
             jwt_token = jwt.decode(token, settings.SECRET_KEY, options={'verify_signature': False})
         except ExpiredSignatureError:
-            return JsonResponse({'errno': 0, 'msg': "登录已过期，请重新登录"})
+            return JsonResponse({'errno': 1017, 'msg': "登录已过期，请重新登录"})
         except JWTError:
-            return JsonResponse({'errno': 0, 'msg': "用户未登录，请先登录"})
+            return JsonResponse({'errno': 1016, 'msg': "用户未登录，请先登录"})
         try:
             user = User.objects.get(id=jwt_token.get('id'))
         except User.DoesNotExist:
-            return JsonResponse({'errno': 0, 'msg': "用户不存在，请先注册"})
+            return JsonResponse({'errno': 1011, 'msg': "用户不存在，请先注册"})
         request.user = user
         return func(request, *args, **kwargs)
 
@@ -36,13 +36,13 @@ def validate_all(func):
             try:
                 jwt_token = jwt.decode(token, settings.SECRET_KEY)
             except ExpiredSignatureError:
-                return JsonResponse({'errno': 0, 'msg': "登录已过期，请重新登录"})
+                return JsonResponse({'errno': 1017, 'msg': "登录已过期，请重新登录"})
             except JWTError:
-                return JsonResponse({'errno': 0, 'msg': "用户未登录，请先登录"})
+                return JsonResponse({'errno': 1016, 'msg': "用户未登录，请先登录"})
             try:
                 user = User.objects.get(id=jwt_token.get('id'))
             except User.DoesNotExist:
-                return JsonResponse({'errno': 0, 'msg': "用户不存在，请先注册"})
+                return JsonResponse({'errno': 1011, 'msg': "用户不存在，请先注册"})
             request.user = user
         return func(request, *args, **kwargs)
 
