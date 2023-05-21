@@ -289,7 +289,7 @@ def create_follow(request):
         follower_user = request.user.username
         follow = Follow(follower_id=follower_id, following_id=following_id)
         follow.save()
-        send_sys_notification(follower_id, following_id, f'{follower_user}关注了你', 1, follower_id)
+        send_sys_notification(follower_id, following_id, '新增关注', f'{follower_user}开始关注你啦', 1, follower_id)
         resp = {'follower': follower_id, 'following': following_id, 'errno': 0, 'msg': '关注成功'}
         return JsonResponse(resp)
     else:

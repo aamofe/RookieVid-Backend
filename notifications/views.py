@@ -18,7 +18,8 @@ def send_notification(request):
         if request.user.status != 1:
             return JsonResponse({'errno': 1, 'msg': "没有管理员权限"})
         for user_id in send_to:
-            new_notification = Notification(send_from=0, send_to=user_id, content=content, link_type=0, link_id=0)
+            new_notification = Notification(send_from=0, send_to=user_id, title='管理员通知', content=content, link_type=0,
+                                            link_id=0)
             new_notification.save()
         return JsonResponse({'errno': 0, 'msg': "通知发送成功"})
     else:
@@ -26,10 +27,10 @@ def send_notification(request):
 
 
 # 发送系统通知
-def send_sys_notification(send_from, send_to, content, link_type, link_id):
+def send_sys_notification(send_from, send_to, title, content, link_type, link_id):
     if User.objects.filter(id=send_to).exists():
-        new_notification = Notification(send_from=send_from, send_to=send_to, content=content, link_type=link_type,
-                                        link_id=link_id)
+        new_notification = Notification(send_from=send_from, send_to=send_to, title=title, content=content,
+                                        link_type=link_type, link_id=link_id)
         new_notification.save()
         return True
     else:
