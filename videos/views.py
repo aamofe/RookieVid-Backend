@@ -1,6 +1,7 @@
 import datetime
 import json
 import pprint
+import re
 import uuid
 
 from qcloud_cos.cos_comm import CiDetectType
@@ -45,6 +46,25 @@ def get_video_by_label(request):
         return JsonResponse({'errno': 0, 'msg': "返回成功！", 'video': video_list}, safe=False)
     else:
         return JsonResponse({'errno': 1, 'msg': "请求方法错误！"})
+@validate_all
+def get_video_by_view_amount(request):
+    if request.method=='GET':
+        num=request.GET.get('num')
+        label=request.GET.get('label')
+        if len(num)==0 or not num.isdigit():
+            return JsonResponse({'errno': 1, 'msg': "视频数量错误！"})
+        else:
+            num=int(num)
+        if label not in LABELS:
+            return JsonResponse({'errno': 1, 'msg': "标签错误！"})
+        videos = Video.objects.filter(reviewed_status=1,label=label).order_by('-view_amount', 'id')
+        videos = videos[:num]
+        video_list=[]
+        for v in videos:
+            video_list.append(v.to_dict())
+        return JsonResponse({'errno': 0, 'msg': "返回成功！", 'video': video_list}, safe=False)
+    else:
+        return JsonResponse({'errno': 1, 'msg': "请求方法错误！"})    
 
 @validate_all
 def get_video_by_hotness(request):
@@ -104,13 +124,16 @@ def get_related_video(request):
     else:
         return JsonResponse({'errno': 1, 'msg': "请求方法错误！"})
 
-def upload_video_method(video_file, video_id, ):
+def upload_video_method(video_file, video_id,):
     client, bucket_name, bucket_region = get_cos_client()
-
     if video_id == '' or video_id == 0:
         video_id = str(uuid.uuid4())
+    file_name = video_file.name
+    file_extension = file_name.split('.')[-1]  # 获取文件后缀
+    print("ex :",file_extension)
+    if file_extension !='mp4':
+        return 1
     video_key = "video_file/{}".format(f'{video_id}.mp4')
-
     response_video = client.put_object(
         Bucket=bucket_name,
         Body=video_file,
@@ -118,33 +141,71 @@ def upload_video_method(video_file, video_id, ):
         StorageClass='STANDARD',
         ContentType="video/mp4"
     )
-    video_url = ""
-    if 'url' in response_video:
-        video_url = response_video['url']
-    else:
-        video_url = f'https://{bucket_name}.cos.{bucket_region}.myqcloud.com/{video_key}'
-    return video_url
-
-def upload_photo_method(photo_file, photo_id):
+    #视频自动审核
+    # video_key = "video_file/{}".format(f'{video_id}.mp4')
+    # response_submit = client.ci_auditing_video_submit(
+    #     Bucket=bucket_name,
+    #     BizType='8f7d7f7e0393f74ee5de3394bc7bfeb1',
+    #     Key=video_key,
+    # )
+    #pprint.pprint(response_submit)
+    return 0
+    
+def upload_cover_method(cover_file, cover_id):
     client, bucket_name, bucket_region = get_cos_client()
-    if photo_id == '' or photo_id == 0:
-        photo_id = str(uuid.uuid4())
-    photo_key = "cover_file/{}".format(f'{photo_id}.png')
+    if cover_id == '' or cover_id == 0:
+        cover_id = str(uuid.uuid4())
+    file_name = cover_file.name
+    file_extension = file_name.split('.')[-1]  # 获取文件后缀
+    if file_extension =='jpg':
+        ContentType = "image/jpg"
+    elif file_extension =='jpeg':
+        ContentType = "image/jpeg"
+    elif file_extension =='png':
+        ContentType = "image/png"
+    else :
+        return JsonResponse({'errno': 1, 'msg': "图片格式不合法"})
+    cover_key = f"cover_file/{cover_id}.{file_extension}"
     response_photo = client.put_object(
         Bucket=bucket_name,
-        Body=photo_file,
-        Key=photo_key,
+        Body=cover_file,
+        Key=cover_key,
         StorageClass='STANDARD',
-        ContentType="image/png"
+        ContentType=ContentType
     )
-
-
-    photo_url = ""
     if 'url' in response_photo:
-        photo_url = response_photo['url']
+        cover_url = response_photo['url']
     else:
-        photo_url = f'https://{bucket_name}.cos.{bucket_region}.myqcloud.com/{photo_key}'
-    return photo_url
+        cover_url = f'https://{bucket_name}.cos.{bucket_region}.myqcloud.com/{cover_key}'
+    #图片自动审核
+    response_submit = client.get_object_sensitive_content_recognition(
+        Bucket=bucket_name,
+        BizType='f90478ee0773ac0ab139c875ae167353',
+        Key=cover_key,
+        DetectType=(CiDetectType.PORN | CiDetectType.ADS)
+    )
+    res = int(response_submit['Result'])
+    #pprint.pprint(response_submit)
+    if res == 1:
+        delete_cover_method()
+        return res,cover_url,response_submit['Label']
+    return res,cover_url,None
+
+def delete_cover_method(cover_id,file_extension):
+    client, bucket_name, bucket_region = get_cos_client()
+    cover_key = f"cover_file/{cover_id}.{file_extension}"
+    response = client.delete_object(
+                Bucket=bucket_name,
+                Key=cover_key
+            )
+def delete_video_method(video_id):
+    client, bucket_name, bucket_region = get_cos_client()
+    video_key = "video_file/{}".format(f'{video_id}.mp4')
+    response = client.delete_object(
+                Bucket=bucket_name,
+                Key=video_key
+            )
+    pprint.pprint(response)
 
 @csrf_exempt
 @validate_login
@@ -164,11 +225,9 @@ def upload_video(request):
             return JsonResponse({'errno': 1, 'msg': "描述不能为空！"})
         if label not in LABELS:
             return JsonResponse({'errno': 1, 'msg': "标签不合法！"})
-
         video_file = request.FILES.get('video_file')
         cover_file = request.FILES.get('cover_file')
         #添加对video_file的审核，只能为.mp4格式 并且是可以打开的视频文件
-
         video = Video.objects.create(
             label=label,
             title=title,
@@ -178,97 +237,27 @@ def upload_video(request):
         )
         video_id = video.id
         cover_id=video_id
-        client, bucket_name, bucket_region = get_cos_client()
-
-        if cover_id == '' or cover_id == 0:
-            cover_id = str(uuid.uuid4())
-        #上传图片
-        file_name = cover_file.name
-        file_extension = file_name.split('.')[-1]  # 获取文件后缀
-        if file_extension =='jpg':
-            ContentType = "image/jpg"
-        elif file_extension =='jpeg':
-            ContentType = "image/jpeg"
-        elif file_extension =='png':
-            ContentType = "image/png"
-        else :
-            return JsonResponse({'errno': 1, 'msg': "图片格式不合法"})
-        cover_key = f"cover_file/{cover_id}.{file_extension}"
-        response_photo = client.put_object(
-            Bucket=bucket_name,
-            Body=cover_file,
-            Key=cover_key,
-            StorageClass='STANDARD',
-            ContentType=ContentType
-        )
-        if 'url' in response_photo:
-            cover_url = response_photo['url']
-        else:
-            cover_url = f'https://{bucket_name}.cos.{bucket_region}.myqcloud.com/{cover_key}'
-        #图片自动审核
-        response_submit = client.get_object_sensitive_content_recognition(
-            Bucket=bucket_name,
-            BizType='f90478ee0773ac0ab139c875ae167353',
-            Key=cover_key,
-            DetectType=(CiDetectType.PORN | CiDetectType.ADS)
-        )
-        res = int(response_submit['Result'])
-        if res == 1:
+        res,cover_url,label=upload_cover_method(cover_file,cover_id)
+        if res==1:
             video.delete()
-            response = client.delete_object(
-                Bucket=bucket_name,
-                Key=cover_key
-            )
-            return JsonResponse({'errno': 1, 'msg': "上传失败！图片含有违规内容 ：" + response_submit['Label']})
-
-
+            return JsonResponse({'errno': 1, 'msg': "上传失败！图片含有违规内容 ：" +label})
         #上传视频
-        if video_id == '' or video_id == 0:
-            video_id = str(uuid.uuid4())
-        file_name = video_file.name
-        file_extension = file_name.split('.')[-1]  # 获取文件后缀
-        print("ex :",file_extension)
-        if file_extension !='mp4':
-            video.delete()
-            return JsonResponse({'errno': 1, 'msg': "视频格式不合法"})
-        video_key = "video_file/{}".format(f'{video_id}.mp4')
-
-        response_video = client.put_object(
-            Bucket=bucket_name,
-            Body=video_file,
-            Key=video_key,
-            StorageClass='STANDARD',
-            ContentType="video/mp4"
-        )
-        video_url = ""
-        if 'url' in response_video:
-            video_url = response_video['url']
-        else:
-            video_url = f'https://{bucket_name}.cos.{bucket_region}.myqcloud.com/{video_key}'
-        #视频自动审核
-        if video_id == '' or video_id == 0:
-            video_id = str(uuid.uuid4())
-        video_key = "video_file/{}".format(f'{video_id}.mp4')
-        response_submit = client.ci_auditing_video_submit(
-            Bucket=bucket_name,
-            BizType='8f7d7f7e0393f74ee5de3394bc7bfeb1',
-            Key=video_key,
-        )
-        video.video_url = video_url
+        res=upload_video_method(video_file,video_id)
+        if res==1:
+            JsonResponse({'errno': 1, 'msg': "视频格式不合法"})
+        
         video.cover_url = cover_url
         video.save()
-        return JsonResponse({'errno': 0, 'msg': "上传成功,待审核"})
+        return JsonResponse({'errno': 0, 'msg': "封面审核通过！视频上传成功,待审核"})
     else:
         return JsonResponse({'errno':1, 'msg': "请求方法错误！"})
 
 def call_back(request):
-    client, bucket_name, bucket_region = get_cos_client()
     if request.method=='POST':
         body = json.loads(request.body)
         code = body.get("code")#错误码，值为0时表示审核成功，非0表示审核失败
         data = body.get("data")#视频审核结果的详细信息。
-        JobId = data.get("JobId")
-        print('这里这里！！！ JobID',JobId)
+        JobId = data.get("trace_id")
         url = data.get("url")
         result = int(data.get("result"))
         porn_info = data.get("porn_info")#审核场景为涉黄的审核结果信息。
@@ -279,62 +268,58 @@ def call_back(request):
             label+=porn_info['label']
         if ads_info is not None and ads_info['label']:
             label+=porn_info['label']
-        videos=Video.objects.filter(JobId=JobId)
-        for video in videos:
-            user_id = video.user_id
-            # 删除审核记录
-            video.JobId=None
+        video_id=re.search(r'\d+(?=\.\w+$)', url).group()
+        if not Video.objects.filter(id=video_id).exists():
+            return JsonResponse({'errno': 1, 'result':result})
+        video=Video.objects.get(id=video_id)
+        # 删除审核记录
+        user=User.objects.get(id=video.user_id)
+        file_extension = video.cover_url.split('.')[-1]  # 获取文件后缀
+        
+        if result == 0 :#审核正常
+            video.reviewed_status=1#审核通过
+            video.video_url = url
             video.save()
-            user=User.objects.get(id=video.user_id)
-            file_extension = video.cover_url.split('.')[-1]  # 获取文件后缀
-            cover_key = f"cover_file/{video.id}.{file_extension}"
-            video_key = "video_file/{}".format(f'{video.id}.mp4')
-            if result==0:#审核正常
-                video.reviewed_status=1#审核通过
-                video.save()
-                #给up主发信息
-                title = "视频发布成功！"
-                content = "亲爱的" + user.username + '你好呀!\n' '视频审核通过啦，快和小伙伴分享分享你的视频叭~'
-                #create_message(user_id, title, content)
-                #给所有粉丝发信息
-                fan_list=Follow.objects.filter(following_id=user.id)
-                for fan in fan_list:
-                    fan_id=fan.follower_id
-                    title = "你关注的博主发布新视频啦！"
-                    content = "亲爱的" + User.objects.get(id=fan_id).username + '你好呀!\n''你关注的博主发布新视频啦！快去看看，然后在评论区留下自己的感受叭~'
-                    #create_message(fan_id, title, content)
-            elif result==1:
-                video.delete()
-                response = client.delete_object(
-                    Bucket=bucket_name,
-                    Key=cover_key
-                )
-                response = client.delete_object(
-                    Bucket=bucket_name,
-                    Key=video_key
-                )
-                title = "视频审核失败！"
-                content = "亲爱的" + user.username + ' 你好呀!\n视频内容好像带有一点' + label + '呢！\n下次不要再上传这类的视频了哟，这次就算了嘿嘿~'
-                # (user_id, title, content)
-                #给up主发信息
-            elif result==2:
-                #给up主发信息
-                title = "视频需要人工审核！"
-                content = "亲爱的" + user.username + ' 你好呀!\n视频内容好像带有一点' + label + '呢！\n我们需要人工再进行审核，不要着急哦~'
-                #发信息(user_id, title, content)
+            #给up主发信息
+            title = "视频发布成功！"
+            content = "亲爱的" + user.username + '你好呀!\n' '视频审核通过啦，快和小伙伴分享分享你的视频叭~'
+            #create_message(user_id, title, content)
+            #给所有粉丝发信息
+            fan_list=Follow.objects.filter(following_id=user.id)
+            for fan in fan_list:
+                fan_id=fan.follower_id
+                title = "你关注的博主发布新视频啦！"
+                content = "亲爱的" + User.objects.get(id=fan_id).username + '你好呀!\n''你关注的博主发布新视频啦！快去看看，然后在评论区留下自己的感受叭~'
+                #create_message(fan_id, title, content)
+        elif result==1:
+            video.delete()
+            delete_cover_method(video.id,file_extension)
+            delete_video_method(video.id)
+            title = "视频审核失败！"
+            content = "亲爱的" + user.username + ' 你好呀!\n视频内容好像带有一点' + label + '呢！\n下次不要再上传这类的视频了哟，这次就算了嘿嘿~'
+            # (user_id, title, content)
+            #给up主发信息
+        elif result==2:
+            #给up主发信息
+            title = "视频需要人工审核！"
+            content = "亲爱的" + user.username + ' 你好呀!\n视频内容好像带有一点' + label + '呢！\n我们需要人工再进行审核，不要着急哦~'
+            #发信息(user_id, title, content) 
         return JsonResponse({'errno': 1, 'result':result})
 @validate_login
 def delete_video(request):
     if request.method == 'POST':
         # 获取操作类型和视频ID
         user=request.user
-        video_id = request.GET.get('video_id')
+        video_id = request.POST.get('video_id')
         try:
             # 根据视频ID从数据库中删除该视频记录
             video = Video.objects.get(id=video_id)
-            if user.id!=video.user_id:
+            file_extension = video.cover_url.split('.')[-1]  # 获取文件后缀
+            if not (user.id==video.user_id or user.status==1):
                 return JsonResponse({'errno': 1, 'msg': '没有权限删除'})
             video.delete()
+            delete_cover_method(video.id,file_extension)
+            delete_video_method(video.id)
             return JsonResponse({'errno': 0, 'msg': '删除成功'})
         except Video.DoesNotExist:
             return JsonResponse({'errno': 1, 'msg': '视频不存在'})
@@ -349,35 +334,24 @@ def update_video(request):
         label = request.POST.get('label')
         title = request.POST.get('title')
         description = request.POST.get('description')
-        video_file=request.FILES.get('video_file')
-        cover_file=request.FILES.get('cover_file')
-
         try:
             video = Video.objects.get(id=video_id)
             if user.id !=video.user_id:
                 return JsonResponse({'errno':1, 'msg': '没有权限更新'})
-            res=0
+            cnt=0
             if title:
                 video.title = title
-                res+=1
+                cnt+=1
             if label and label!=video.label:
                 if label in LABELS :
                     video.label = label
-                    res+=1
+                    cnt+=1
                 else:
                     return JsonResponse({'errno': 1, 'msg': '标签不合法'})
             if  description and description!=video.description:
                 video.description = description
-                res+=1
-            if video_file:
-                video_url = upload_video_method(video_file, video.id)
-                video.video_url = video_url
-                res+=1
-            if cover_file:
-                cover_url = upload_photo_method(cover_file, video.id)
-                video.cover_url = cover_url
-                res+=1
-            if res==0:
+                cnt+=1
+            if cnt==0:
                 return JsonResponse({'errno': 1, 'msg': '没有更新'})
             video.save()
             return JsonResponse({'errno': 0, 'msg': '更新成功'})
