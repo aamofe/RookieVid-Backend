@@ -317,7 +317,7 @@ def call_back(request):
             title = "视频需要人工审核！"
             content = "亲爱的" + user.username + ' 你好呀!\n视频内容好像带有一点' + label + '呢！\n我们需要人工再进行审核，不要着急哦~'
             #发信息(user_id, title, content)
-
+        return JsonResponse({'errno': 1, 'result':result})
 @validate_login
 def delete_video(request):
     if request.method == 'POST':
