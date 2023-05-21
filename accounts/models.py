@@ -9,7 +9,8 @@ class User(models.Model):
     username = models.CharField('用户名', max_length=20)
     email = models.EmailField('邮箱', max_length=20)
     password = models.CharField('密码', max_length=16)
-    avatar_url = models.CharField('头像地址', max_length=255)
+    avatar_url = models.CharField('头像地址', max_length=255,
+                                  default='https://aamofe-1315620690.cos.ap-beijing.myqcloud.com/avatar_file/default.png')
     signature = models.CharField('个性签名', max_length=100)
     created_at = models.DateTimeField('创建时间', auto_now_add=True)
     status = models.IntegerField('状态', default=0)

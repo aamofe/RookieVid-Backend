@@ -29,10 +29,10 @@ def send_vcode(request):
         to_email = request.POST.get("email")
         print("to_email : ", to_email)
         if re.match('\w+@\w+.\w+', str(to_email)) is None:
-            return JsonResponse({'errno': 1004, 'msg': "邮箱格式错误"})
+            return JsonResponse({'errno': 1, 'msg': "邮箱格式错误"})
         # 通过邮箱判断用户是否已存在
         if User.objects.filter(email=to_email).exists():
-            return JsonResponse({'errno': 1010, 'msg': "邮箱已占用，请更换邮箱地址"})
+            return JsonResponse({'errno': 1, 'msg': "邮箱已占用，请更换邮箱地址"})
 
         # 获取当前时间
         now_time = timezone.now()
@@ -41,7 +41,7 @@ def send_vcode(request):
             codes = Vcode.objects.filter(to_email=to_email)
             for vcode in codes:
                 if (now_time - vcode.send_at).seconds < 60:  # 1分钟内不能重复发送邮件
-                    return JsonResponse({'errno': 1005, 'msg': "操作过于频繁，请稍后再试"})
+                    return JsonResponse({'errno': 1, 'msg': "操作过于频繁，请稍后再试"})
         # 随机生成一个新的验证码
         code = str(random.randint(10 ** 5, 10 ** 6 - 1))
         while Vcode.objects.filter(vcode=code).exists():
@@ -57,9 +57,9 @@ def send_vcode(request):
             return JsonResponse({'errno': 0, 'msg': '验证码已发送，请查阅'})
         else:
             return JsonResponse(
-                {'from': EMAIL_FROM, 'to': to_email, 'errno': 1006, 'msg': "验证码发送失败，请检查邮箱地址"})
+                {'from': EMAIL_FROM, 'to': to_email, 'errno': 1, 'msg': "验证码发送失败，请检查邮箱地址"})
     else:
-        return JsonResponse({'error': 1000, 'msg': "请求方式错误"})
+        return JsonResponse({'error': 1, 'msg': "请求方式错误"})
 
 
 # 先验证验证码是否正确，若正确检验用户名密码是否合法，完成注册
@@ -83,11 +83,11 @@ def register(request):
                     codes = Vcode.objects.filter(to_email=email)
                     for code in codes:
                         code.delete()
-                    return JsonResponse({'errno': 1008, 'msg': '验证码失效，请重新获取'})
+                    return JsonResponse({'errno': 1, 'msg': '验证码失效，请重新获取'})
             else:
-                return JsonResponse({'errno': 1007, 'msg': '验证码错误'})
+                return JsonResponse({'errno': 1, 'msg': '验证码错误'})
         else:
-            return JsonResponse({'errno': 1009, 'msg': '该账户没有获取验证码'})
+            return JsonResponse({'errno': 1, 'msg': '该账户没有获取验证码'})
 
         # 验证码正确，进行注册
         username = request.POST.get('username')  # 获取请求数据
@@ -96,12 +96,12 @@ def register(request):
 
         # 用户名长度为1-20位
         if re.match('.{1,20}', str(username)) is None:
-            return JsonResponse({'errno': 1001, 'msg': "用户名不合法"})
+            return JsonResponse({'errno': 1, 'msg': "用户名不合法"})
         # 密码长度为8-16位，且同时包含数字和字母
         if re.match('(?!^[0-9]+$)(?!^[a-zA-Z]+$)[0-9A-Za-z]{8,16}', str(password_1)) is None:
-            return JsonResponse({'username': username, 'password': password_1, 'errno': 1002, 'msg': "密码格式错误"})
+            return JsonResponse({'username': username, 'password': password_1, 'errno': 1, 'msg': "密码格式错误"})
         if password_1 != password_2:
-            return JsonResponse({'errno': 1003, 'msg': "两次输入的密码不同"})
+            return JsonResponse({'errno': 1, 'msg': "两次输入的密码不同"})
         else:
             # 为用户分配不重复的uid
             uid = str(random.randint(10 ** 9, 10 ** 10 - 1))
@@ -112,7 +112,7 @@ def register(request):
             new_user.save()  # 一定要save才能保存到数据库中
             return JsonResponse({'uid': uid, 'errno': 0, 'msg': "注册成功"})
     else:
-        return JsonResponse({'error': 1000, 'msg': "请求方式错误"})
+        return JsonResponse({'error': 1, 'msg': "请求方式错误"})
 
 
 @csrf_exempt
@@ -125,7 +125,7 @@ def login(request):
         elif User.objects.filter(email=uid).exists():
             user = User.objects.get(email=uid)
         else:
-            return JsonResponse({'errno': 1011, 'msg': "请先注册"})
+            return JsonResponse({'errno': 1, 'msg': "请先注册"})
         if user.password == password:  # 判断请求的密码是否与数据库存储的密码相同
             # request.session['id'] = user.uid
             payload = {'exp': datetime.utcnow()+timedelta(days=2), 'id': user.id}
@@ -135,9 +135,9 @@ def login(request):
             print(encode)
             return JsonResponse({'token': token, 'status': user.status, 'errno': 0, 'msg': "登录成功"})
         else:
-            return JsonResponse({'errno': 1012, 'msg': "密码错误"})
+            return JsonResponse({'errno': 1, 'msg': "密码错误"})
     else:
-        return JsonResponse({'error': 1000, 'msg': "请求方式错误"})
+        return JsonResponse({'error': 1, 'msg': "请求方式错误"})
 
 
 @csrf_exempt
@@ -185,9 +185,9 @@ def display_profile(request):
                 context = User.to_dict(user)
                 return JsonResponse({'context': context, 'status': 1, 'errno': 0, 'msg': '查询用户信息成功'})
             except User.DoesNotExist:
-                return JsonResponse({'errno': 1018, 'msg': '用户不存在'})
+                return JsonResponse({'errno': 1, 'msg': '用户不存在'})
     else:
-        return JsonResponse({'errno': 1000, 'msg': "请求方式错误"})
+        return JsonResponse({'errno': 1, 'msg': "请求方式错误"})
 
 
 @csrf_exempt
@@ -206,7 +206,7 @@ def edit_profile(request):
         user.save()
         return JsonResponse({'errno': 0, 'msg': "用户资料修改成功"})
     else:
-        return JsonResponse({'error': 1000, 'msg': "请求方式错误"})
+        return JsonResponse({'error': 1, 'msg': "请求方式错误"})
 
 
 @csrf_exempt
@@ -220,7 +220,7 @@ def edit_avatar(request):
         user.save()
         return JsonResponse({'errno': 0, 'msg': "头像上传成功"})
     else:
-        return JsonResponse({'errno': 1000, 'msg': "请求方式错误"})
+        return JsonResponse({'errno': 1, 'msg': "请求方式错误"})
 
 
 @csrf_exempt
@@ -232,16 +232,16 @@ def change_password(request):
         password_2 = request.POST.get('password_2')
         user = request.user
         if old_password != user.password:
-            return JsonResponse({'errno': 1013, 'msg': "密码错误，请重新输入"})
+            return JsonResponse({'errno': 1, 'msg': "密码错误，请重新输入"})
         if re.match('(?!^[0-9]+$)(?!^[a-zA-Z]+$)[0-9A-Za-z]{8,16}', str(password_1)) is None:
-            return JsonResponse({'password': password_1, 'errno': 1014, 'msg': "密码格式错误"})
+            return JsonResponse({'password': password_1, 'errno': 1, 'msg': "密码格式错误"})
         if password_1 != password_2:
-            return JsonResponse({'errno': 1015, 'msg': "两次输入的密码不同"})
+            return JsonResponse({'errno': 1, 'msg': "两次输入的密码不同"})
         user.password = password_1
         user.save()
         return JsonResponse({'errno': 0, 'msg': "密码修改成功"})
     else:
-        return JsonResponse({'errno': 1000, 'msg': "请求方式错误"})
+        return JsonResponse({'errno': 1, 'msg': "请求方式错误"})
 
 
 @csrf_exempt
@@ -262,18 +262,18 @@ def change_email(request):
                     codes = Vcode.objects.filter(to_email=email)
                     for code in codes:
                         code.delete()
-                    return JsonResponse({'errno': 1008, 'msg': '验证码失效，请重新获取'})
+                    return JsonResponse({'errno': 1, 'msg': '验证码失效，请重新获取'})
             else:
-                return JsonResponse({'errno': 1007, 'msg': '验证码错误'})
+                return JsonResponse({'errno': 1, 'msg': '验证码错误'})
         else:
-            return JsonResponse({'errno': 1009, 'msg': '该账户没有获取验证码'})
+            return JsonResponse({'errno': 1, 'msg': '该账户没有获取验证码'})
 
         user = request.user
         user.email = email
         user.save()
         return JsonResponse({'errno': 0, 'msg': '绑定邮箱修改成功'})
     else:
-        return JsonResponse({'errno': 1000, 'msg': "请求方式错误"})
+        return JsonResponse({'errno': 1, 'msg': "请求方式错误"})
 
 
 @csrf_exempt
@@ -284,7 +284,7 @@ def create_follow(request):
         try:
             User.objects.get(id=following_id)
         except User.DoesNotExist:
-            return JsonResponse({'errno': 1018, 'msg': "用户不存在"})
+            return JsonResponse({'errno': 1, 'msg': "用户不存在"})
         follower_id = request.user.id
         follower_user = request.user.username
         follow = Follow(follower_id=follower_id, following_id=following_id)
@@ -293,7 +293,7 @@ def create_follow(request):
         resp = {'follower': follower_id, 'following': following_id, 'errno': 0, 'msg': '关注成功'}
         return JsonResponse(resp)
     else:
-        return JsonResponse({'errno': 1000, 'msg': "请求方式错误"})
+        return JsonResponse({'errno': 1, 'msg': "请求方式错误"})
 
 
 @csrf_exempt
@@ -307,7 +307,7 @@ def remove_follow(request):
         resp = {'follower': follower_id, 'following': following_id, 'errno': 0, 'msg': '取关成功'}
         return JsonResponse(resp)
     else:
-        return JsonResponse({'errno': 1000, 'msg': "请求方式错误"})
+        return JsonResponse({'errno': 1, 'msg': "请求方式错误"})
 
 
 @csrf_exempt
@@ -326,7 +326,7 @@ def get_followings(request):
         else:
             return JsonResponse({'errno': 0, 'msg': "关注列表为空", 'data': following_list})
     else:
-        return JsonResponse({'errno': 1000, 'msg': "请求方法错误"})
+        return JsonResponse({'errno': 1, 'msg': "请求方法错误"})
 
 
 @csrf_exempt
@@ -345,7 +345,7 @@ def get_followers(request):
         else:
             return JsonResponse({'errno': 0, 'msg': "粉丝列表为空", 'data': follower_list})
     else:
-        return JsonResponse({'errno': 1000, 'msg': "请求方法错误"})
+        return JsonResponse({'errno': 1, 'msg': "请求方法错误"})
 
 
 @csrf_exempt
@@ -363,7 +363,7 @@ def get_videos(request):
         else:
             return JsonResponse({'errno': 0, 'msg': "投稿列表为空", 'data': video_list})
     else:
-        return JsonResponse({'errno': 1000, 'msg': "请求方法错误"})
+        return JsonResponse({'errno': 1, 'msg': "请求方法错误"})
 
 
 @csrf_exempt
@@ -384,10 +384,10 @@ def get_favorite(request):
                 favorite_list.append(Favorite.to_dict(favorite))
             return JsonResponse({'errno': 0, 'favorite': favorite_list, 'msg': "获取收藏夹成功"})
         except Favorite.DoesNotExist:
-            return JsonResponse({'errno': 1020, 'msg': "收藏夹不存在"})
+            return JsonResponse({'errno': 1, 'msg': "收藏夹不存在"})
 
     else:
-        return JsonResponse({'errno': 1000, 'msg': "请求方法错误"})
+        return JsonResponse({'errno': 1, 'msg': "请求方法错误"})
 
 
 @csrf_exempt
@@ -399,7 +399,7 @@ def get_favlist(request):
         try:
             Favorite.objects.get(id=favorite_id)
         except Favorite.DoesNotExist:
-            return JsonResponse({'errno': 1020, 'msg': "收藏夹不存在", 'data': video_list})
+            return JsonResponse({'errno': 1, 'msg': "收藏夹不存在", 'data': video_list})
 
         if Favlist.objects.filter(favorite_id=favorite_id).exists():
             favlists = Favlist.objects.filter(favorite_id=favorite_id)
@@ -412,7 +412,7 @@ def get_favlist(request):
             return JsonResponse({'errno': 0, 'msg': "收藏夹为空", 'data': video_list})
 
     else:
-        return JsonResponse({'errno': 1000, 'msg': "请求方法错误"})
+        return JsonResponse({'errno': 1, 'msg': "请求方法错误"})
 
 
 @csrf_exempt
@@ -423,10 +423,10 @@ def delete_favorite(request):
         try:
             favorite = Favorite.objects.get(id=favorite_id)
         except Favorite.DoesNotExist:
-            return JsonResponse({'errno': 1020, 'msg': "收藏夹不存在"})
+            return JsonResponse({'errno': 1, 'msg': "收藏夹不存在"})
         user_id = favorite.user_id
         if user_id != request.user.id:   # 最好是进别人的主页不显示删除按钮
-            return JsonResponse({'errno': 1021, 'msg': "没有操作权限"})
+            return JsonResponse({'errno': 1, 'msg': "没有操作权限"})
 
         if Favlist.objects.filter(favorite_id=favorite_id).exists():
             favlists = Favlist.objects.filter(favorite_id=favorite_id)
@@ -436,4 +436,4 @@ def delete_favorite(request):
         favorite.delete()
         return JsonResponse({'errno': 0, 'msg': "收藏夹删除成功"})
     else:
-        return JsonResponse({'errno': 1000, 'msg': "请求方法错误"})
+        return JsonResponse({'errno': 1, 'msg': "请求方法错误"})

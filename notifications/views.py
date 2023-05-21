@@ -60,12 +60,12 @@ def get_all_method(user_id):
         notifications = Notification.objects.filter(send_to=user_id)
         for notification in notifications:
             context_1 = notification.to_dict()
-            print(int(notification.send_from))
+
             if int(notification.send_from) == 0:
                 context_2 = {
                     'user_id': 0,
                     'username': '管理员',
-                    'avatar_url': '',
+                    'avatar_url': 'https://aamofe-1315620690.cos.ap-beijing.myqcloud.com/avatar_file/super_admin.png',
                     'signature': ''
                 }
             elif User.objects.filter(id=notification.send_from):
@@ -76,7 +76,7 @@ def get_all_method(user_id):
                 context_2 = {
                     'user_id': -1,
                     'username': '用户已注销',
-                    'avatar_url': '',
+                    'avatar_url': 'https://aamofe-1315620690.cos.ap-beijing.myqcloud.com/avatar_file/default.png',
                     'signature': ''
                 }
             context = {k: v for context in [context_1, context_2] for k, v in context.items()}
@@ -86,7 +86,8 @@ def get_all_method(user_id):
             else:
                 read_list.append(context)
             count_all += 1
-        resp = {'errno': 0, 'msg': "消息列表查询成功", 'count_all': count_all, 'count_unread': count_unread, 'unread_list': unread_list, 'read_list': read_list}
+        resp = {'errno': 0, 'msg': "消息列表查询成功", 'count_all': count_all, 'count_unread': count_unread,
+                'unread_list': unread_list, 'read_list': read_list}
         return resp
     except Notification.DoesNotExist:
         return {'errno': 0, 'msg': "消息列表为空", 'data': []}
