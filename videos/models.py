@@ -34,7 +34,7 @@ class Video(models.Model):
     label=models.CharField(verbose_name="标签",default="娱乐",max_length=255)
     title=models.CharField(verbose_name='视频标题',max_length=255)
     description=models.CharField(verbose_name='视频描述',max_length=255)
-
+    JobId=models.CharField(verbose_name='腾讯云自动审核ID',null=True,max_length=255)
     # 这里的字段建议设置上默认值
     video_url = models.CharField(verbose_name='视频路径', max_length=128, default='')
     cover_url = models.CharField(verbose_name='封面路径', max_length=128, default='')
