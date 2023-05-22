@@ -14,6 +14,7 @@ from django.db import models
 from django.core import serializers
 import datetime
 from accounts.models import User, Follow
+from notifications.views import send_sys_notification
 from super_admin.models import Complain
 from videos.cos_utils import get_cos_client
 from videos.models import Video, Like, Comment, Reply, Favorite, Favlist
@@ -151,7 +152,7 @@ def upload_video_method(video_file, video_id,):
     #pprint.pprint(response_submit)
     return 0
     
-def upload_cover_method(cover_file, cover_id):
+def upload_cover_method(cover_file, cover_id,url):
     client, bucket_name, bucket_region = get_cos_client()
     if cover_id == '' or cover_id == 0:
         cover_id = str(uuid.uuid4())
@@ -164,20 +165,19 @@ def upload_cover_method(cover_file, cover_id):
     elif file_extension =='png':
         ContentType = "image/png"
     else :
-        return JsonResponse({'errno': 1, 'msg': "图片格式不合法"})
-    cover_key = f"cover_file/{cover_id}.{file_extension}"
-    response_photo = client.put_object(
+        return -2,None,None
+    cover_key = f"{url}/{cover_id}.{file_extension}"
+    response_cover = client.put_object(
         Bucket=bucket_name,
         Body=cover_file,
         Key=cover_key,
         StorageClass='STANDARD',
         ContentType=ContentType
     )
-    if 'url' in response_photo:
-        cover_url = response_photo['url']
+    if 'url' in response_cover :
+        cover_url = response_cover['url']
     else:
         cover_url = f'https://{bucket_name}.cos.{bucket_region}.myqcloud.com/{cover_key}'
-    #图片自动审核
     response_submit = client.get_object_sensitive_content_recognition(
         Bucket=bucket_name,
         BizType='f90478ee0773ac0ab139c875ae167353',
@@ -237,7 +237,9 @@ def upload_video(request):
         )
         video_id = video.id
         cover_id=video_id
-        res,cover_url,label=upload_cover_method(cover_file,cover_id)
+        res,cover_url,label=upload_cover_method(cover_file,cover_id,"cover_file")
+        if res==-2:
+            return JsonResponse({'errno': 1, 'msg': "图片格式不合法"})
         if res==1:
             video.delete()
             return JsonResponse({'errno': 1, 'msg': "上传失败！图片含有违规内容 ：" +label})
@@ -284,26 +286,28 @@ def call_back(request):
             title = "视频发布成功！"
             content = "亲爱的" + user.username + '你好呀!\n' '视频审核通过啦，快和小伙伴分享分享你的视频叭~'
             #create_message(user_id, title, content)
+            send_sys_notification(2,video.user_id,title,content,2,video.user_id)
             #给所有粉丝发信息
             fan_list=Follow.objects.filter(following_id=user.id)
             for fan in fan_list:
                 fan_id=fan.follower_id
                 title = "你关注的博主发布新视频啦！"
-                content = "亲爱的" + User.objects.get(id=fan_id).username + '你好呀!\n''你关注的博主发布新视频啦！快去看看，然后在评论区留下自己的感受叭~'
-                #create_message(fan_id, title, content)
+                fan=User.objects.get(id=fan_id)
+                content = "亲爱的" + fan.username + '你好呀!\n''你关注的博主发布新视频啦！快去看看，然后在评论区留下自己的感受叭~'
+                send_sys_notification(2,fan.id,title,content,2,video.id)
         elif result==1:
             video.delete()
             delete_cover_method(video.id,file_extension)
             delete_video_method(video.id)
             title = "视频审核失败！"
             content = "亲爱的" + user.username + ' 你好呀!\n视频内容好像带有一点' + label + '呢！\n下次不要再上传这类的视频了哟，这次就算了嘿嘿~'
-            # (user_id, title, content)
+            send_sys_notification(0,video.user_id,title,content,2,0)
             #给up主发信息
         elif result==2:
             #给up主发信息
             title = "视频需要人工审核！"
             content = "亲爱的" + user.username + ' 你好呀!\n视频内容好像带有一点' + label + '呢！\n我们需要人工再进行审核，不要着急哦~'
-            #发信息(user_id, title, content) 
+            send_sys_notification(0,video.user_id,title,content,2,0)
         return JsonResponse({'errno': 1, 'result':result})
 @validate_login
 def delete_video(request):
@@ -480,7 +484,11 @@ def comment_video(request):
                 video_id=video_id,
                 created_at=created_at
             )
+            u=User.objects.get(id=video.user_id)
             comment.save()
+            title = "有人给你点赞啦"
+            content = "亲爱的" + u.username + ' 你好呀!\n有人给你点赞啦，快去看看吧'
+            send_sys_notification(2, u.username , title, content, 2, video.id)
             return JsonResponse({'errno': 0, 'msg': '评论成功'})
         except Video.DoesNotExist:
             return JsonResponse({'errno': 1, 'msg': '视频不存在'})
@@ -527,6 +535,10 @@ def reply_comment(request):
                     return JsonResponse({'errno': 1, 'msg': '回复不能为空'})
                 reply = Reply(user_id=user_id, comment_id=comment_id, content=content, video_id=video_id)
                 reply.save()
+                u=User.objects.get(id=comment.user_id)
+                title = "有人给你回复啦"
+                content = "亲爱的" + u.username + ' 你好呀!\n有人给你的评论回复啦，快去看看吧'
+                send_sys_notification(3, u.id, title, content, 2, video.id)
                 return JsonResponse({'errno': 0, 'errmsg': '回复成功'})
             except Video.DoesNotExist:
                 return JsonResponse({'errno': 1, 'msg': '视频不存在'})
@@ -584,6 +596,10 @@ def like_video(request):
                 # 用户没有点赞过该视频，则添加点赞记录
                 like = Like(user_id=user_id, video_id=video_id)
                 like.save()
+                u = User.objects.get(id=video.user_id)
+                title = "有人给你的视频点赞啦"
+                content = "亲爱的" + u.username + ' 你好呀!\n有人给你的视频点赞啦，快去看看吧'
+                send_sys_notification(2, u.id, title, content, 2, video.id)
                 video.like_amount += 1
                 video.save()
                 # ('video.like_amount : ',video.like_amount)
@@ -602,6 +618,7 @@ def create_favorite(request):
         title = request.POST.get('title')
         description = request.POST.get('description')
         status =int(request.POST.get('status'))
+        favorite_cover=request.FILES.get("favorite_cover")
         if len(description)==0 or not (status == 0 or status == 1):
             return JsonResponse({'errno': 1, 'msg': "参数不合法！"})
         try:
@@ -609,9 +626,15 @@ def create_favorite(request):
             return JsonResponse({'errno': 1, 'msg': "收藏夹已存在！"})
         except Favorite.DoesNotExist:
             if len(title)==0:
-                favorite=Favorite(description=description,status=status,user_id=user_id,created_at=datetime.datetime.now())
-            else:
-                favorite=Favorite(title=title,description=description,status=status,user_id=user_id,created_at=datetime.datetime.now())
+                title="默认收藏夹"
+            favorite=Favorite(title=title,description=description,status=status,user_id=user_id,created_at=datetime.datetime.now())
+            res, cover_url, label = upload_cover_method(favorite_cover,favorite.id, "cover_file")
+            if res == -2:
+                return JsonResponse({'errno': 1, 'msg': "封面图片格式不合法"})
+            if res == 1:
+                favorite.delete()
+                return JsonResponse({'errno': 1, 'msg': "上传失败！图片含有违规内容 ：" + label})
+            favorite.cover_url=cover_url
             favorite.save()
             return JsonResponse({'errno': 0, 'msg': "创建收藏夹成功！"})
     else:
@@ -668,6 +691,7 @@ def favorite_video(request):
                         favorite.delete()
                     except Favlist.DoesNotExist:
                         pass
+
             return JsonResponse({'errno': 0, 'msg': "收藏成功！"})
         except Video.DoesNotExist:
             return JsonResponse({'errno': 1, 'msg': "视频不存在！"})
