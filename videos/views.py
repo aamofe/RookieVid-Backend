@@ -617,8 +617,12 @@ def create_favorite(request):
         print('hah',user_id)
         title = request.POST.get('title')
         description = request.POST.get('description')
-        status =int(request.POST.get('status'))
+        status =request.POST.get('status')
         favorite_cover=request.FILES.get("favorite_cover")
+        if len(status)==0 or not status.isdigit():
+            return JsonResponse({'errno': 1, 'msg': "收藏夹状态错误！"})
+        else:
+            status=int(status)
         if len(description)==0 or not (status == 0 or status == 1):
             return JsonResponse({'errno': 1, 'msg': "参数不合法！"})
         try:
@@ -628,14 +632,15 @@ def create_favorite(request):
             if len(title)==0:
                 title="默认收藏夹"
             favorite=Favorite(title=title,description=description,status=status,user_id=user_id,created_at=datetime.datetime.now())
-            res, cover_url, label = upload_cover_method(favorite_cover,favorite.id, "cover_file")
-            if res == -2:
-                return JsonResponse({'errno': 1, 'msg': "封面图片格式不合法"})
-            if res == 1:
-                favorite.delete()
-                return JsonResponse({'errno': 1, 'msg': "上传失败！图片含有违规内容 ：" + label})
-            favorite.cover_url=cover_url
-            favorite.save()
+            if favorite_cover:
+                res, cover_url, label = upload_cover_method(favorite_cover,favorite.id, "cover_file")
+                if res == -2:
+                    return JsonResponse({'errno': 1, 'msg': "封面图片格式不合法"})
+                if res == 1:
+                    favorite.delete()
+                    return JsonResponse({'errno': 1, 'msg': "上传失败！图片含有违规内容 ：" + label})
+                favorite.cover_url=cover_url
+                favorite.save()
             return JsonResponse({'errno': 0, 'msg': "创建收藏夹成功！"})
     else:
         return JsonResponse({'errno': 1, 'msg': "请求方法错误！"})
