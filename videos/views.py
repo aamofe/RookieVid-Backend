@@ -33,7 +33,7 @@ def get_video_by_label(request):
             return JsonResponse({'errno': 1, 'msg': "视频数量错误！"})
         else:
             num=int(num)
-        print("num =",num)
+        #print("num =",num)
         videos = Video.objects.filter(label=label,reviewed_status=1)
         if num==-1:
             num=len(videos)
@@ -197,14 +197,16 @@ def upload_cover_method(cover_file, cover_id,url):
     )
     res = int(response_submit['Result'])
     Score=int(response_submit['Score'])
-    pprint.pprint(response_submit)
+    #pprint.pprint(response_submit)
     if res == 1 or res==2 or Score>=60:
         category=response_submit['Category']
         label=response_submit['Label']
         subLabel=response_submit['SubLabel']
         if label=='Politics':
+            #pprint.pprint(response_submit)
+
             content = "您的视频被判定为违规！" + \
-                      "标签是" + Label[label] + "，分类为：" + Category[category] + "，具体内容是：" + subLabel + \
+                      "标签是" + Label[label] +  "，具体内容是：" + response_submit['PoliticsInfo']['Label'] + \
                       "。判定比例高达 " + str(Score) + "%。请修改"
         else:
             content = "您的视频被判定为违规！" +\
