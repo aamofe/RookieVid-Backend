@@ -144,7 +144,7 @@ class Favorite(models.Model):
     status = models.IntegerField(verbose_name="是否为私有", default=0)  # 0 - 公开    1 - 私有
     #user = models.ForeignKey(User, verbose_name='收藏夹所属用户', on_delete=models.CASCADE)
     user_id = models.IntegerField(verbose_name='收藏者ID',null=True )
-    #avatar_url = models.CharField(verbose_name='封面路径', max_length=128)
+    cover_url = models.CharField(verbose_name='封面路径', default='https://aamofe-1315620690.cos.ap-beijing.myqcloud.com/favorite_cover/0.png',max_length=128)
     created_at = models.DateTimeField(verbose_name='创建收藏夹时间',null=True, auto_now_add=True)
     def to_dict(self):
         return {

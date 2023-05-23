@@ -22,5 +22,6 @@ urlpatterns=[
     path('complain_video',complain_video),
     path('is_complaint',is_complaint),
     path('get_comment',get_comment),
-    path('call_back',call_back)
+    path('call_back',call_back),
+    path('get_video_by_view_amount',get_video_by_view_amount),
 ]
