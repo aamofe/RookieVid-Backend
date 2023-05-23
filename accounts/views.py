@@ -150,6 +150,7 @@ def logout(request):
 @csrf_exempt
 @validate_login
 def display_myprofile(request):
+    # 看自己的个人中心
     if request.method == 'GET':
         user = request.user
         context = user.to_dict()
@@ -174,7 +175,12 @@ def display_profile(request):
             try:
                 user = User.objects.get(id=user_id)
                 context = User.to_dict(user)
-                return JsonResponse({'context': context, 'status': 1, 'errno': 0, 'msg': '查询用户信息成功'})
+                is_followed = 0
+                if Follow.objects.filter(follower_id=request.user.id, following_id=user.id).exists():
+                    is_followed = 1
+                print(type(is_followed))
+                return JsonResponse({'context': context, 'status': 1, 'is_followed': is_followed, 'errno': 0,
+                                     'msg': '查询用户信息成功'})
             except User.DoesNotExist:
                 return JsonResponse({'errno': 1, 'msg': '用户不存在'})
     else:
