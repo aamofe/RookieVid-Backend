@@ -16,7 +16,7 @@ import datetime
 from accounts.models import User, Follow
 from notifications.views import send_sys_notification
 from super_admin.models import Complain
-from videos.cos_utils import get_cos_client
+from videos.cos_utils import get_cos_client, Category, Label, SubLabel
 from videos.models import Video, Like, Comment, Reply, Favorite, Favlist
 from random import sample
 from django.contrib.auth.models import AnonymousUser
@@ -152,7 +152,17 @@ def upload_video_method(video_file, video_id,):
     # )
     #pprint.pprint(response_submit)
     return 0
-    
+@validate_all
+def test(request):
+    cover_file = request.FILES.get('cover_file')
+    cover_id = 3
+    url = 'favorite_cover'
+    res, cover_url,label=upload_cover_method(cover_file,cover_id,url)
+    print('res = ',res)
+    print('url =',url)
+    print('label = ',label)
+    return JsonResponse({'errno': 1, 'msg': label})
+
 def upload_cover_method(cover_file, cover_id,url):
     client, bucket_name, bucket_region = get_cos_client()
     if cover_id == '' or cover_id == 0:
@@ -183,13 +193,25 @@ def upload_cover_method(cover_file, cover_id,url):
         Bucket=bucket_name,
         BizType='f90478ee0773ac0ab139c875ae167353',
         Key=cover_key,
-        DetectType=(CiDetectType.PORN | CiDetectType.ADS)
+        #DetectType=(CiDetectType.PORN | CiDetectType.ADS)
     )
     res = int(response_submit['Result'])
-    #pprint.pprint(response_submit)
-    if res == 1:
+    Score=int(response_submit['Score'])
+    pprint.pprint(response_submit)
+    if res == 1 or res==2 or Score>=60:
+        category=response_submit['Category']
+        label=response_submit['Label']
+        subLabel=response_submit['SubLabel']
+        if label=='Politics':
+            content = "您的视频被判定为违规！" + \
+                      "标签是" + Label[label] + "，分类为：" + Category[category] + "，具体内容是：" + subLabel + \
+                      "。判定比例高达 " + str(Score) + "%。请修改"
+        else:
+            content = "您的视频被判定为违规！" +\
+                  "标签是："+Label[label]+"，分类为："+Category[category]+"，具体内容是"+SubLabel[subLabel]+\
+                  "。判定比例高达" + str(Score) + "%。请修改！"
         delete_cover_method(url,cover_id,file_extension)
-        return res,None,response_submit['Label']
+        return 1,None,content
     return res,cover_url,None
 
 def delete_cover_method(url,cover_id,file_extension):
@@ -241,18 +263,14 @@ def upload_video(request):
             user_id=user_id,
             created_at=datetime.datetime.now(),
         )
-        if cover_file:
-            print("名字 ： ",cover_file.name)
-        if video_file:
-            print("名字 ： ",video_file.name)
         video_id = video.id
         cover_id=video_id
-        res,cover_url,label=upload_cover_method(cover_file,cover_id,"cover_file")
+        res,cover_url,content=upload_cover_method(cover_file,cover_id,"cover_file")
         if res==-2:
             return JsonResponse({'errno': 1, 'msg': "图片格式不合法"})
         if res==1:
             video.delete()
-            return JsonResponse({'errno': 1, 'msg': "上传失败！图片含有违规内容 ：" +label})
+            return JsonResponse({'errno': 1, 'msg': "上传失败！图片含有违规内容 ：" +content})
         #上传视频
         res=upload_video_method(video_file,video_id)
         if res==1:
@@ -275,11 +293,11 @@ def call_back(request):
         porn_info = data.get("porn_info")#审核场景为涉黄的审核结果信息。
         # "hit_flag": 0 ,"label": "","count": 0
         ads_info=data.get("ads_info")
-        label=''
+        content=''
         if porn_info is not None and porn_info['label']:
-            label+=porn_info['label']
+            content+=porn_info['label']
         if ads_info is not None and ads_info['label']:
-            label+=porn_info['label']
+            content+=porn_info['label']
         video_id=re.search(r'\d+(?=\.\w+$)', url).group()
         if not Video.objects.filter(id=video_id).exists():
             return JsonResponse({'errno': 1, 'result':result})
@@ -310,13 +328,13 @@ def call_back(request):
             delete_cover_method(video.id,file_extension)
             delete_video_method(video.id)
             title = "视频审核失败！"
-            content = "亲爱的" + user.username + ' 你好呀!\n视频内容好像带有一点' + label + '呢！\n下次不要再上传这类的视频了哟，这次就算了嘿嘿~'
+            content = "亲爱的" + user.username + ' 你好呀!\n视频内容好像带有一点' + content + '呢！\n下次不要再上传这类的视频了哟，这次就算了嘿嘿~'
             send_sys_notification(0,video.user_id,title,content,2,0)
             #给up主发信息
         elif result==2:
             #给up主发信息
             title = "视频需要人工审核！"
-            content = "亲爱的" + user.username + ' 你好呀!\n视频内容好像带有一点' + label + '呢！\n我们需要人工再进行审核，不要着急哦~'
+            content = "亲爱的" + user.username + ' 你好呀!\n视频内容好像带有一点' + content + '呢！\n我们需要人工再进行审核，不要着急哦~'
             send_sys_notification(0,video.user_id,title,content,2,0)
         return JsonResponse({'errno': 1, 'result':result})
 @validate_login
