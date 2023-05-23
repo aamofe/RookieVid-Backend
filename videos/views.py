@@ -270,7 +270,7 @@ def upload_video(request):
             return JsonResponse({'errno': 1, 'msg': "图片格式不合法"})
         if res==1:
             video.delete()
-            return JsonResponse({'errno': 1, 'msg': "上传失败！图片含有违规内容 ：" +content})
+            return JsonResponse({'errno': 1, 'msg': content})
         #上传视频
         res=upload_video_method(video_file,video_id)
         if res==1:
