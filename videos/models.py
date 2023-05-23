@@ -152,6 +152,7 @@ class Favorite(models.Model):
             'title':self.title,
             'description':self.description,
             'status':self.status,
-            'user_id':self.user_id
+            'user_id':self.user_id,
+            'cover_url':self.cover_url,
         }
 

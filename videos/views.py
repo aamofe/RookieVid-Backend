@@ -187,13 +187,13 @@ def upload_cover_method(cover_file, cover_id,url):
     res = int(response_submit['Result'])
     #pprint.pprint(response_submit)
     if res == 1:
-        delete_cover_method()
-        return res,cover_url,response_submit['Label']
+        delete_cover_method(url,cover_id,file_extension)
+        return res,None,response_submit['Label']
     return res,cover_url,None
 
-def delete_cover_method(cover_id,file_extension):
+def delete_cover_method(url,cover_id,file_extension):
     client, bucket_name, bucket_region = get_cos_client()
-    cover_key = f"cover_file/{cover_id}.{file_extension}"
+    cover_key = f"{url}/{cover_id}.{file_extension}"
     response = client.delete_object(
                 Bucket=bucket_name,
                 Key=cover_key
@@ -632,8 +632,9 @@ def create_favorite(request):
             if len(title)==0:
                 title="默认收藏夹"
             favorite=Favorite(title=title,description=description,status=status,user_id=user_id,created_at=datetime.datetime.now())
+            favorite.save()
             if favorite_cover:
-                res, cover_url, label = upload_cover_method(favorite_cover,favorite.id, "cover_file")
+                res, cover_url, label = upload_cover_method(favorite_cover,favorite.id, "favorite_cover")
                 if res == -2:
                     return JsonResponse({'errno': 1, 'msg': "封面图片格式不合法"})
                 if res == 1:
