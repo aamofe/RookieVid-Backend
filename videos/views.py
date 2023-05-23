@@ -29,10 +29,11 @@ def get_video_by_label(request):
         num=request.GET.get('num')
         if label not in LABELS:
             return JsonResponse({'errno': 1, 'msg': "标签错误！"})
-        if len(num)==0 or not num.isdigit():
+        if len(num)==0 :
             return JsonResponse({'errno': 1, 'msg': "视频数量错误！"})
         else:
             num=int(num)
+        print("num =",num)
         videos = Video.objects.filter(label=label,reviewed_status=1)
         if num==-1:
             num=len(videos)
