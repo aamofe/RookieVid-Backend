@@ -141,7 +141,7 @@ class Reply(models.Model):
 class Favorite(models.Model):
     title = models.CharField(verbose_name='默认收藏夹', max_length=64)
     description = models.TextField(verbose_name='描述')
-    status = models.IntegerField(verbose_name="是否为私有", default=0)  # 0 - 公开    1 - 私有
+    is_private = models.IntegerField(verbose_name="是否为私有", default=0)  # 0 - 公开    1 - 私有
     #user = models.ForeignKey(User, verbose_name='收藏夹所属用户', on_delete=models.CASCADE)
     user_id = models.IntegerField(verbose_name='收藏者ID',null=True )
     cover_url = models.CharField(verbose_name='封面路径', default='https://aamofe-1315620690.cos.ap-beijing.myqcloud.com/favorite_cover/0.png',max_length=128)
@@ -152,6 +152,7 @@ class Favorite(models.Model):
             'title':self.title,
             'description':self.description,
             'status':self.status,
-            'user_id':self.user_id
+            'user_id':self.user_id,
+            'cover_url':self.cover_url,
         }
 
