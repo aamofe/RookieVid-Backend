@@ -456,7 +456,7 @@ def get_favlist(request):
         favorite_id = request.GET.get('favorite_id')
         video_list = []
         try:
-            Favorite.objects.get(id=favorite_id)
+            favorite = Favorite.objects.get(id=favorite_id)
         except Favorite.DoesNotExist:
             return JsonResponse({'errno': 1, 'msg': "收藏夹不存在", 'data': video_list})
 
@@ -466,9 +466,9 @@ def get_favlist(request):
                 video = Video.objects.get(id=favlist.video_id)
                 video_data = Video.to_simple_dict(video)
                 video_list.append(video_data)
-            return JsonResponse({'errno': 0, 'msg': "收藏列表查询成功", 'data': video_list})
+            return JsonResponse({'errno': 0, 'msg': "收藏列表查询成功", 'data': video_list, 'cover_url': favorite.cover_url})
         else:
-            return JsonResponse({'errno': 0, 'msg': "收藏夹为空", 'data': video_list})
+            return JsonResponse({'errno': 0, 'msg': "收藏夹为空", 'data': video_list, 'cover_url': favorite.cover_url})
 
     else:
         return JsonResponse({'errno': 1, 'msg': "请求方法错误"})
