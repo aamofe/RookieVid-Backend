@@ -228,7 +228,12 @@ def upload_video(request):
             return JsonResponse({'errno': 1, 'msg': "标签不合法！"})
         video_file = request.FILES.get('video_file')
         cover_file = request.FILES.get('cover_file')
+        if not cover_file:
+            return JsonResponse({'errno': 1, 'msg': "封面文件未上传"})
+        if not video_file:
+            return JsonResponse({'errno': 1, 'msg': "视频文件未上传"})
         #添加对video_file的审核，只能为.mp4格式 并且是可以打开的视频文件
+        print("哈哈 user_id : ",user_id)
         video = Video.objects.create(
             label=label,
             title=title,
@@ -236,6 +241,10 @@ def upload_video(request):
             user_id=user_id,
             created_at=datetime.datetime.now(),
         )
+        if cover_file:
+            print("名字 ： ",cover_file.name)
+        if video_file:
+            print("名字 ： ",video_file.name)
         video_id = video.id
         cover_id=video_id
         res,cover_url,label=upload_cover_method(cover_file,cover_id,"cover_file")
@@ -394,11 +403,20 @@ def search(request):
         video_list = []
         user_list=[]
         for v in videos:
-            video_dict = v.to_dict()
-            # print("video_url: ", video_dict.get('video_url'))
-            video_list.append(video_dict)
+            video_list.append(v.to_simple_dict())
         for u in users:
-            user_list.append(u.to_dict())
+            user=request.user
+            uu=u.to_dict()
+            if isinstance(user, AnonymousUser):
+                followed=0
+            else:
+                try:
+                    follow=Follow.objects.get(follower_id=user.id,following_id=u.id)
+                    followed=1
+                except Follow.DoesNotExist:
+                    followed=0
+            uu['followed']=followed
+            user_list.append(uu)
         return JsonResponse({'errno': 0, 'msg': "返回成功！", 'video': video_list,'user':user_list}, safe=False)
     else:
         return JsonResponse({'errno': 1, 'msg': "请求方法错误！"})
@@ -421,6 +439,7 @@ def view_video(request):
             if isinstance(user, AnonymousUser):
                 liked=0
                 favorited = 0
+                followed=0
             else:
                 try :
                     like=Like.objects.get(video_id=video_id,user_id=user_id)
@@ -430,10 +449,17 @@ def view_video(request):
                 try:
                     favorite=Favlist.objects.get(video_id=video_id,user_id=user_id)
                     favorited=1
-                except:
+                except Favlist.DoesNotExist:
                     favorited=0
+                try:
+                    follow=Follow.objects.get(follower_id=user.id,following_id=video.user_id)
+                    followed=1
+                except Follow.DoesNotExist:
+                    followed=0
+                
             v['liked']=liked
             v['favorited']=favorited
+            v['followed']=followed
             total_comment_amount=0
             comment_amount=0
             comments = Comment.objects.filter(video_id=video_id)

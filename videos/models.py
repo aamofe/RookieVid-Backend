@@ -151,7 +151,7 @@ class Favorite(models.Model):
             'id':self.id,
             'title':self.title,
             'description':self.description,
-            'status':self.status,
+            'is_private':self.is_private,
             'user_id':self.user_id,
             'cover_url':self.cover_url,
         }
