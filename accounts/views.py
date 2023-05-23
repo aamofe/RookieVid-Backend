@@ -147,27 +147,6 @@ def logout(request):
     return JsonResponse({'errno': 0, 'msg': "注销成功"})
 
 
-def upload_photo_method(photo_file, photo_id):
-    client, bucket_name, bucket_region = get_cos_client()
-
-    if photo_id == '' or photo_id == 0:
-        photo_id = str(uuid.uuid4())
-    photo_key = "avatar_file/{}".format(f'{photo_id}.png')
-    response_photo = client.put_object(
-        Bucket=bucket_name,
-        Body=photo_file,
-        Key=photo_key,
-        StorageClass='STANDARD',
-        ContentType="image/png"
-    )
-    photo_url = ""
-    if 'url' in response_photo:
-        photo_url = response_photo['url']
-    else:
-        photo_url = f'https://{bucket_name}.cos.{bucket_region}.myqcloud.com/{photo_key}'
-    return photo_url
-
-
 @csrf_exempt
 @validate_login
 def display_myprofile(request):
@@ -221,6 +200,54 @@ def edit_profile(request):
         return JsonResponse({'error': 1, 'msg': "请求方式错误"})
 
 
+def upload_avatar_method(avatar_file, avatar_id, url):
+    client, bucket_name, bucket_region = get_cos_client()
+    if avatar_id == '' or avatar_id == 0:
+        avatar_id = str(uuid.uuid4())
+    file_name = avatar_file.name
+    file_extension = file_name.split('.')[-1]  # 获取文件后缀
+    if file_extension == 'jpg':
+        ContentType = "image/jpg"
+    elif file_extension == 'jpeg':
+        ContentType = "image/jpeg"
+    elif file_extension == 'png':
+        ContentType = "image/png"
+    else:
+        return -2, None, None
+    avatar_key = f"{url}/{avatar_id}.{file_extension}"
+    response_avatar = client.put_object(
+        Bucket=bucket_name,
+        Body=avatar_file,
+        Key=avatar_key,
+        StorageClass='STANDARD',
+        ContentType=ContentType
+    )
+    if 'url' in response_avatar:
+        avatar_url = response_avatar['url']
+    else:
+        avatar_url = f'https://{bucket_name}.cos.{bucket_region}.myqcloud.com/{avatar_key}'
+    response_submit = client.get_object_sensitive_content_recognition(
+        Bucket=bucket_name,
+        BizType='f90478ee0773ac0ab139c875ae167353',
+        Key=avatar_key,
+        DetectType=(CiDetectType.PORN | CiDetectType.ADS)
+    )
+    res = int(response_submit['Result'])
+    if res == 1:
+        delete_avatar_method()
+        return res, avatar_url, response_submit['Label']
+    return res, avatar_url, None
+
+
+def delete_avatar_method(avatar_id, file_extension):
+    client, bucket_name, bucket_region = get_cos_client()
+    avatar_key = f"avatar_file/{avatar_id}.{file_extension}"
+    response = client.delete_object(
+                Bucket=bucket_name,
+                Key=avatar_key
+            )
+
+
 @csrf_exempt
 @validate_login
 def edit_avatar(request):
@@ -230,50 +257,21 @@ def edit_avatar(request):
         # avatar_url = upload_photo_method(avatar_file, user.id)  # 头像的命名改成id
 
         avatar_id = user.id
-        client, bucket_name, bucket_region = get_cos_client()
-
-        if avatar_id == '' or avatar_id == 0:
-            avatar_id = str(uuid.uuid4())
-        file_name = avatar_file.name
-        file_extension = file_name.split('.')[-1]  # 获取文件后缀
-        if file_extension == 'jpg':
-            ContentType = "image/jpg"
-        elif file_extension == 'jpeg':
-            ContentType = "image/jpeg"
-        elif file_extension == 'png':
-            ContentType = "image/png"
-        else:
+        res, avatar_url, label = upload_avatar_method(avatar_file, avatar_id, "avatar_file")
+        if res == -2:
             return JsonResponse({'errno': 1, 'msg': "图片格式不合法"})
-        avatar_key = f"avatar_file/{avatar_id}.{file_extension}"
-        response_photo = client.put_object(
-            Bucket=bucket_name,
-            Body=avatar_file,
-            Key=avatar_key,
-            StorageClass='STANDARD',
-            ContentType=ContentType
-        )
-        if 'url' in response_photo:
-            avatar_url = response_photo['url']
-        else:
-            avatar_url = f'https://{bucket_name}.cos.{bucket_region}.myqcloud.com/{avatar_key}'
-        # 图片自动审核
-        response_submit = client.get_object_sensitive_content_recognition(
-            Bucket=bucket_name,
-            BizType='f90478ee0773ac0ab139c875ae167353',
-            Key=avatar_key,
-            DetectType=(CiDetectType.PORN | CiDetectType.ADS)
-        )
-        res = int(response_submit['Result'])
         if res == 1:
-            response = client.delete_object(
-                Bucket=bucket_name,
-                Key=avatar_key
-            )
-            return JsonResponse({'errno': 1, 'msg': "上传失败！图片含有违规内容 ：" + response_submit['Label']})
+            return JsonResponse({'errno': 1, 'msg': "上传失败！图片含有违规内容 ：" + label})
 
+        client, bucket_name, bucket_region = get_cos_client()
+        client.delete_object(
+            Bucket=bucket_name,
+            Key=user.avatar_url
+        )
         user.avatar_url = avatar_url
         user.save()
         return JsonResponse({'errno': 0, 'msg': "头像上传成功"})
+
     else:
         return JsonResponse({'errno': 1, 'msg': "请求方式错误"})
 
