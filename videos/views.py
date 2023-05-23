@@ -29,10 +29,11 @@ def get_video_by_label(request):
         num=request.GET.get('num')
         if label not in LABELS:
             return JsonResponse({'errno': 1, 'msg': "标签错误！"})
-        if len(num)==0 or not num.isdigit():
+        if len(num)==0 :
             return JsonResponse({'errno': 1, 'msg': "视频数量错误！"})
         else:
             num=int(num)
+        print("num =",num)
         videos = Video.objects.filter(label=label,reviewed_status=1)
         if num==-1:
             num=len(videos)
@@ -187,13 +188,13 @@ def upload_cover_method(cover_file, cover_id,url):
     res = int(response_submit['Result'])
     #pprint.pprint(response_submit)
     if res == 1:
-        delete_cover_method()
-        return res,cover_url,response_submit['Label']
+        delete_cover_method(url,cover_id,file_extension)
+        return res,None,response_submit['Label']
     return res,cover_url,None
 
-def delete_cover_method(cover_id,file_extension):
+def delete_cover_method(url,cover_id,file_extension):
     client, bucket_name, bucket_region = get_cos_client()
-    cover_key = f"cover_file/{cover_id}.{file_extension}"
+    cover_key = f"{url}/{cover_id}.{file_extension}"
     response = client.delete_object(
                 Bucket=bucket_name,
                 Key=cover_key
@@ -217,11 +218,11 @@ def upload_video(request):
         label = request.POST.get('label')
         title = request.POST.get('title')
         description = request.POST.get('description')
-        if len(label)==0:
+        if not label:
             return JsonResponse({'errno': 1, 'msg': "标签不能为空！"})
-        if len(title) == 0 :
+        if not title :
             return JsonResponse({'errno':1, 'msg': "标题不能为空！"})
-        if len(description) == 0:
+        if not description:
             return JsonResponse({'errno': 1, 'msg': "描述不能为空！"})
         if label not in LABELS:
             return JsonResponse({'errno': 1, 'msg': "标签不合法！"})
@@ -455,7 +456,7 @@ def get_comment(request):
         video_id=request.GET.get('video_id')
         try:
             video=Video.objects.get(id=video_id)
-            comments = Comment.objects.filter(video_id=video_id)
+            comments = Comment.objects.filter(video_id=video_id).order_by('created_at')
             comment_list = []
             for c in comments:
                 cc = c.to_dict()
@@ -616,31 +617,32 @@ def create_favorite(request):
         user_id=user.id
         print('hah',user_id)
         title = request.POST.get('title')
-        description = request.POST.get('description')
-        status =request.POST.get('status')
-        favorite_cover=request.FILES.get("favorite_cover")
-        if len(status)==0 or not status.isdigit():
-            return JsonResponse({'errno': 1, 'msg': "收藏夹状态错误！"})
-        else:
-            status=int(status)
-        if len(description)==0 or not (status == 0 or status == 1):
-            return JsonResponse({'errno': 1, 'msg': "参数不合法！"})
+        description = "这是一个收藏夹"
+        is_private=0
+        #favorite_cover=request.FILES.get("favorite_cover")
+        # if len(status)==0 or not status.isdigit():
+        #     return JsonResponse({'errno': 1, 'msg': "收藏夹状态错误！"})
+        # else:
+        #     status=int(status)
+        # if len(description)==0 or not (status == 0 or status == 1):
+        #     return JsonResponse({'errno': 1, 'msg': "参数不合法！"})
         try:
             favorite=Favorite.objects.get(user_id=user_id,title=title)
             return JsonResponse({'errno': 1, 'msg': "收藏夹已存在！"})
         except Favorite.DoesNotExist:
             if len(title)==0:
                 title="默认收藏夹"
-            favorite=Favorite(title=title,description=description,status=status,user_id=user_id,created_at=datetime.datetime.now())
-            if favorite_cover:
-                res, cover_url, label = upload_cover_method(favorite_cover,favorite.id, "cover_file")
-                if res == -2:
-                    return JsonResponse({'errno': 1, 'msg': "封面图片格式不合法"})
-                if res == 1:
-                    favorite.delete()
-                    return JsonResponse({'errno': 1, 'msg': "上传失败！图片含有违规内容 ：" + label})
-                favorite.cover_url=cover_url
-                favorite.save()
+            favorite=Favorite(title=title,description=description,is_private=is_private,user_id=user_id,created_at=datetime.datetime.now())
+            favorite.save()
+            # if favorite_cover:
+            #     res, cover_url, label = upload_cover_method(favorite_cover,favorite.id, "favorite_cover")
+            #     if res == -2:
+            #         return JsonResponse({'errno': 1, 'msg': "封面图片格式不合法"})
+            #     if res == 1:
+            #         favorite.delete()
+            #         return JsonResponse({'errno': 1, 'msg': "上传失败！图片含有违规内容 ：" + label})
+            #     favorite.cover_url=cover_url
+            #     favorite.save()
             return JsonResponse({'errno': 0, 'msg': "创建收藏夹成功！"})
     else:
         return JsonResponse({'errno': 1, 'msg': "请求方法错误！"})
