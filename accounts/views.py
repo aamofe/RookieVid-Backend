@@ -1,5 +1,6 @@
 import time
 from django.db import models
+from qcloud_cos.cos_comm import CiDetectType
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.models import AnonymousUser
 from decorator.decorator_permission import validate_login, validate_all
@@ -169,6 +170,17 @@ def upload_photo_method(photo_file, photo_id):
 
 @csrf_exempt
 @validate_login
+def display_myprofile(request):
+    if request.method == 'GET':
+        user = request.user
+        context = user.to_dict()
+        return JsonResponse({'context': context, 'status': 0, 'errno': 0, 'msg': '查询用户信息成功'})
+    else:
+        return JsonResponse({'errno': 1, 'msg': "请求方式错误"})
+
+
+@csrf_exempt
+@validate_login
 def display_profile(request):
     # 如果用户已登录，展示用户信息
     if request.method == 'GET':
@@ -215,7 +227,50 @@ def edit_avatar(request):
     if request.method == 'POST':
         user = request.user
         avatar_file = request.FILES.get('avatar_file')
-        avatar_url = upload_photo_method(avatar_file, user.id)  # 头像的命名改成id
+        # avatar_url = upload_photo_method(avatar_file, user.id)  # 头像的命名改成id
+
+        avatar_id = user.id
+        client, bucket_name, bucket_region = get_cos_client()
+
+        if avatar_id == '' or avatar_id == 0:
+            avatar_id = str(uuid.uuid4())
+        file_name = avatar_file.name
+        file_extension = file_name.split('.')[-1]  # 获取文件后缀
+        if file_extension == 'jpg':
+            ContentType = "image/jpg"
+        elif file_extension == 'jpeg':
+            ContentType = "image/jpeg"
+        elif file_extension == 'png':
+            ContentType = "image/png"
+        else:
+            return JsonResponse({'errno': 1, 'msg': "图片格式不合法"})
+        avatar_key = f"avatar_file/{avatar_id}.{file_extension}"
+        response_photo = client.put_object(
+            Bucket=bucket_name,
+            Body=avatar_file,
+            Key=avatar_key,
+            StorageClass='STANDARD',
+            ContentType=ContentType
+        )
+        if 'url' in response_photo:
+            avatar_url = response_photo['url']
+        else:
+            avatar_url = f'https://{bucket_name}.cos.{bucket_region}.myqcloud.com/{avatar_key}'
+        # 图片自动审核
+        response_submit = client.get_object_sensitive_content_recognition(
+            Bucket=bucket_name,
+            BizType='f90478ee0773ac0ab139c875ae167353',
+            Key=avatar_key,
+            DetectType=(CiDetectType.PORN | CiDetectType.ADS)
+        )
+        res = int(response_submit['Result'])
+        if res == 1:
+            response = client.delete_object(
+                Bucket=bucket_name,
+                Key=avatar_key
+            )
+            return JsonResponse({'errno': 1, 'msg': "上传失败！图片含有违规内容 ：" + response_submit['Label']})
+
         user.avatar_url = avatar_url
         user.save()
         return JsonResponse({'errno': 0, 'msg': "头像上传成功"})
@@ -437,3 +492,28 @@ def delete_favorite(request):
         return JsonResponse({'errno': 0, 'msg': "收藏夹删除成功"})
     else:
         return JsonResponse({'errno': 1, 'msg': "请求方法错误"})
+
+
+@csrf_exempt
+@validate_login
+def delete_favorite_video(request):
+    if request.method == 'POST':
+        favorite_id = request.POST.get('favorite_id')
+        delete = request.POST.getlist('delete_id')
+        user = request.user
+        try:
+            for favlist_id in delete:
+                favorite_video = Favlist.objects.get(id=favlist_id)
+                if favorite_video.user_id != user.id:
+                    return JsonResponse({'errno': 1, 'msg': "没有操作权限"})
+                if favorite_video.favorite_id != int(favorite_id):
+                    return JsonResponse({'errno': 1, 'msg': "视频不在该收藏夹中"})
+                if not Video.objects.filter(id=favorite_video.video_id).exists():
+                    favorite_video.delete()
+                    return JsonResponse({'errno': 0, 'msg': "视频失效，已移除收藏"})
+                favorite_video.delete()
+            return JsonResponse({'errno': 0, 'msg': "取消收藏成功"})
+        except Favlist.DoesNotExist:
+            return JsonResponse({'errno': 1, 'msg': "视频已删除或不存在"})
+    else:
+        return JsonResponse({'error': 1, 'msg': "请求方式错误"})

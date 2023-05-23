@@ -156,3 +156,5 @@ def delete_notification(request):
             return JsonResponse({'errno': 0, 'msg': "消息删除成功"})
         except Notification.DoesNotExist:
             return JsonResponse({'errno': 1, 'msg': "消息已删除或不存在"})
+    else:
+        return JsonResponse({'error': 1, 'msg': "请求方式错误"})
