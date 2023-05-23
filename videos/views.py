@@ -712,16 +712,34 @@ def favorite_video(request):
                     return JsonResponse({'errno': 1, 'msg': "收藏夹不属于用户！"})
                 try :
                     favlist=Favlist.objects.get(favorite_id=f_id,video_id=video_id)
-                except Favlist.DoesNotExist:
+                except Favlist.DoesNotExist:#如果没收藏过这个视频，那就判断这个收藏夹有多少视频，如果为1
                     favlist=Favlist(user_id=user_id,favorite_id=f_id,video_id=video_id,created_at=datetime.datetime.now())
                     favlist.save()
+                    favorite_video_list=Favlist.objects.filter(favorite_id=f_id)
+                    if len(favorite_video_list)==1:
+                        favorite.cover_url=video.cover_url
+                        favorite.save()
             favorites=Favorite.objects.filter(user_id=user_id)
-            for f in favorites:#取消收藏
-                #print("???",type(f.id),type(favorite_list[0]))
-                if str(f.id) not in favorite_list :
+            for f in favorites:#用户所有的收藏夹
+                if str(f.id) not in favorite_list :#没被选中
                     try :
-                        favorite=Favlist.objects.get(favorite_id=f.id,video_id=video_id)
-                        favorite.delete()
+                        favlist=Favlist.objects.get(favorite_id=f.id,video_id=video_id)#如果有收藏记录就需要删掉
+                        favlist.delete()
+                        #查找该收藏夹还有多少个视频
+                        favorite_video_list=Favlist.objects.filter(favorite_id=f_id).order_by('created_at')
+                        cover_url=''#更新收藏夹的封面
+                        while(len(favorite_video_list)>1):
+                            video_id=favorite_video_list.first().video_id
+                            try :
+                                video=Video.objects.get(id=video_id)
+                                cover_url=video.cover_url
+                                break
+                            except Video.DoesNotExist:
+                                favorite_video_list.first().delete()
+                        if len(favorite_video_list)==0:
+                            cover_url='https://aamofe-1315620690.cos.ap-beijing.myqcloud.com/favorite_cover/0.png'
+                        favorite.cover_url=cover_url
+                        favorite.save()
                     except Favlist.DoesNotExist:
                         pass
 
