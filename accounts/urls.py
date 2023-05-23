@@ -7,6 +7,7 @@ urlpatterns = [
     path('register', register),
     path('login', login),
     path('logout', logout),
+    path('display_myprofile', display_myprofile),
     path('display_profile', display_profile),
     path('edit_profile', edit_profile),
     path('edit_avatar', edit_avatar),
@@ -20,4 +21,5 @@ urlpatterns = [
     path('get_favorite', get_favorite),
     path('get_favlist', get_favlist),
     path('delete_favorite', delete_favorite),
+    path('delete_favorite_video', delete_favorite_video),
 ]
