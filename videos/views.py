@@ -535,7 +535,7 @@ def view_video(request):
                 total_comment_amount+=len(reply)+1
                 cc['reply_amount']=len(reply)
                 comment_amount+=1
-                print('id: ',cc.get('id'))
+                #print('id: ',cc.get('id'))
 
             v['total_comment_amount'] =total_comment_amount
             v['comment_amount'] =comment_amount
