@@ -412,6 +412,20 @@ def get_video(request):
         #     return JsonResponse({'errno': 1, 'msg': '没有上传稿件'})
     else:
         return JsonResponse({'errno': 1, 'msg': '请求方法不合法'})
+@validate_login
+def get_one_video(request):
+    if request.method == 'GET':
+        user=request.user
+        video_id=request.GET.get('video_id')
+        try :
+            video=Video.objects.get(id=video_id)
+            if video.user_id!=user.id:
+                return JsonResponse({'errno': 1, 'msg': '该视频不属于您！'})
+            return JsonResponse({'errno': 0, 'video':video.to_simple_dict() , 'msg': '获取稿件成功'})
+        except Video.DoesNotExist:
+            return JsonResponse({'errno': 1,  'msg': '稿件不存在'})
+    else:
+        return JsonResponse({'errno': 1, 'msg': '请求方法不合法'})
 @validate_all
 def search(request):
     if request.method == 'GET':
