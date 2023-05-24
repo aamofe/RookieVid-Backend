@@ -524,13 +524,19 @@ def view_video(request):
             v['followed']=followed
             total_comment_amount=0
             comment_amount=0
-            comments = Comment.objects.filter(video_id=video_id)
+            comments = Comment.objects.filter(video_id=video_id,comment_id=0)
             comment_list = []
             for c in comments:
                 cc=c.to_dict()
+                reply=Comment.objects.filter(video_id=video_id,comment_id=c.id)
+                for r in reply:
+                    cc['reply'].append(r.to_dict())
                 comment_list.append(cc)
-                total_comment_amount+=cc['reply_amount']+1
+                total_comment_amount+=len(reply)+1
+                cc['reply_amount']=len(reply)
                 comment_amount+=1
+                print('id: ',cc.get('id'))
+
             v['total_comment_amount'] =total_comment_amount
             v['comment_amount'] =comment_amount
             return JsonResponse({'errno': 0, 'msg': "返回成功！", 'video': v, 'comment': comment_list},safe=False)
@@ -538,16 +544,21 @@ def view_video(request):
             return JsonResponse({'errno': 1, 'msg': '视频不存在'})
     else:
         return JsonResponse({'errno': 1, 'msg': "请求方法错误！"})
-
+@validate_all
 def get_comment(request):
     if request.method == 'GET':
         video_id=request.GET.get('video_id')
         try:
             video=Video.objects.get(id=video_id)
-            comments = Comment.objects.filter(video_id=video_id).order_by('created_at')
+            comments = Comment.objects.filter(video_id=video_id,comment_id=0).order_by('created_at')
             comment_list = []
             for c in comments:
                 cc = c.to_dict()
+                reply = Comment.objects.filter(video_id=video_id, comment_id=c.id)
+                for r in reply:
+                    cc['reply'].append(r.to_dict())
+                comment_list.append(cc)
+                cc['reply_amount'] = len(reply)
                 comment_list.append(cc)
             return JsonResponse({'errno': 0, 'msg': "返回成功！", 'comment': comment_list}, safe=False)
         except Video.DoesNotExist:
@@ -573,7 +584,8 @@ def comment_video(request):
                 user_id=user_id,
                 content=content,
                 video_id=video_id,
-                created_at=created_at
+                created_at=created_at,
+                comment_id=0,
             )
             u=User.objects.get(id=video.user_id)
             comment.save()
@@ -591,7 +603,7 @@ def delete_comment(request):
         user=request.user
         comment_id=request.POST.get('comment_id')
         try:
-            comment=Comment.objects.get(id=comment_id)
+            comment=Comment.objects.get(id=comment_id,comment_id=0)
             try:
                 #video=Video.objects.get(id=comment.video_id)
                 video = Video.objects.get(id=comment.video_id)
@@ -624,8 +636,12 @@ def reply_comment(request):
                 video = Video.objects.get(id=video_id)
                 if len(content) == 0:
                     return JsonResponse({'errno': 1, 'msg': '回复不能为空'})
-                reply = Reply(user_id=user_id, comment_id=comment_id, content=content, video_id=video_id)
-                reply.save()
+                c = Comment(user_id=user_id,
+                            comment_id=comment_id,
+                            content=content,
+                            video_id=video_id,
+                            created_at=datetime.datetime.now())
+                c.save()
                 u=User.objects.get(id=comment.user_id)
                 title = "有人给你回复啦"
                 content = "亲爱的" + u.username + ' 你好呀!\n有人给你的评论回复啦，快去看看吧'
@@ -643,14 +659,14 @@ def delete_reply(request):
         user=request.user
         reply_id=request.POST.get('reply_id')
         try:
-            reply=Reply.objects.get(id=reply_id)
+            c=Comment.objects.get(id=reply_id)
             try:
-                comment = Comment.objects.get(id=reply.comment_id)
+                comment = Comment.objects.get(id=c.comment_id)
                 try:
-                    video = Video.objects.get(id=reply.video_id)
-                    if not (user.id == comment.user_id or user.id == reply.user_id or user.id == video.user_id or user.status == 1):
+                    video = Video.objects.get(id=c.video_id)
+                    if not (user.id == comment.user_id or user.id == c.user_id or user.id == video.user_id or user.status == 1):
                         return JsonResponse({'errno': 1, 'msg': "没有权限删除回复！"})
-                    reply.delete()
+                    c.delete()
                     return JsonResponse({'errno': 0, 'msg': "删除回复成功！"})
                 except:
                     return JsonResponse({'errno': 1, 'msg': "视频不存在！"})
