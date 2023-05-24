@@ -1,8 +1,13 @@
 import datetime
 import json
+import os
 import pprint
 import re
+import shutil
+import tempfile
 import uuid
+import PIL
+import cv2
 from django.utils import timezone
 from qcloud_cos.cos_comm import CiDetectType
 from qcloud_cos import CosServiceError
@@ -13,6 +18,7 @@ from django.db.models import Q, Count, F, ExpressionWrapper
 from django.db import models
 from django.core import serializers
 import datetime
+from PIL import Image
 from accounts.models import User, Follow
 from notifications.views import send_sys_notification
 from super_admin.models import Complain
@@ -256,8 +262,24 @@ def upload_video(request):
             return JsonResponse({'errno': 1, 'msg': "封面文件未上传"})
         if not video_file:
             return JsonResponse({'errno': 1, 'msg': "视频文件未上传"})
-        #添加对video_file的审核，只能为.mp4格式 并且是可以打开的视频文件
-        print("哈哈 user_id : ",user_id)
+        # try:
+        #     with tempfile.NamedTemporaryFile(delete=False) as temp_cover:
+        #         temp_cover_path = temp_cover.name
+        #         shutil.copyfileobj(cover_file, temp_cover)
+        #     # 打开临时文件进行图像操作
+        #     image = Image.open(temp_cover_path)
+        #     width, height = image.size
+        #     if (width != 1920 or height != 1080) and (width != 960 or height != 600):
+        #         return JsonResponse({'errno': 1, 'msg': "封面图片尺寸必须为1920x1280或者960x600！当前尺寸为 %dx%d" % (width, height)})
+        #     # 在完成操作后关闭图像文件
+        #     image.close()
+        #     # 删除临时文件
+        #     os.remove(temp_cover_path)
+        # except PIL.UnidentifiedImageError:
+        #     return JsonResponse({'errno': 1, 'msg': "无法打开封面文件"})
+        max_file_size = 200 * 1024 * 1024  # 300MB
+        if video_file.size > max_file_size:
+            return JsonResponse({'errno': 1, 'msg': "视频文件大小超过300MB限制"})
         video = Video.objects.create(
             label=label,
             title=title,
@@ -364,7 +386,7 @@ def delete_video(request):
 def update_video(request):
     if request.method == 'POST':
         user=request.user
-        video_id = request.GET.get('video_id')
+        video_id = request.POST.get('video_id')
         label = request.POST.get('label')
         title = request.POST.get('title')
         description = request.POST.get('description')
@@ -417,6 +439,8 @@ def get_one_video(request):
     if request.method == 'GET':
         user=request.user
         video_id=request.GET.get('video_id')
+        if not video_id:
+            return JsonResponse({'errno': 1, 'msg': '请传入视频ID！'})
         try :
             video=Video.objects.get(id=video_id)
             if video.user_id!=user.id:
