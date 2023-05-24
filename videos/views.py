@@ -399,14 +399,17 @@ def get_video(request):
     if request.method == 'GET':
         user=request.user
         print('hhhh ',user.id)
-        try:
-            videos=Video.objects.filter(user_id=user.id)
-            video_list=[]
-            for v in videos:
-                video_list.append(v.to_simple_dict())
-            return JsonResponse({'errno': 0, 'video':video_list,'msg': '获取稿件成功'})
-        except Video.DoesNotExist:
-            return JsonResponse({'errno': 1, 'msg': '没有上传稿件'})
+        videos0 = Video.objects.filter(user_id=user.id, reviewed_status=0)
+        video_list0 = []
+        videos1 = Video.objects.filter(user_id=user.id, reviewed_status=1)
+        video_list1 = []
+        for v in videos0:
+            video_list0.append(v.to_simple_dict())
+        for v in videos1:
+            video_list1.append(v.to_simple_dict())
+        return JsonResponse({'errno': 0, 'video0': video_list0, 'video1': video_list1, 'msg': '获取稿件成功'})
+        # except Video.DoesNotExist:
+        #     return JsonResponse({'errno': 1, 'msg': '没有上传稿件'})
     else:
         return JsonResponse({'errno': 1, 'msg': '请求方法不合法'})
 @validate_all
