@@ -24,5 +24,6 @@ urlpatterns=[
     path('get_comment',get_comment),
     path('call_back',call_back),
     path('get_video_by_view_amount',get_video_by_view_amount),
+    path('get_one_video',get_one_video),
     #path('test',test),
 ]
