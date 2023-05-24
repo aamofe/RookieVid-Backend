@@ -3,7 +3,7 @@ import json
 import pprint
 import re
 import uuid
-
+from django.utils import timezone
 from qcloud_cos.cos_comm import CiDetectType
 from qcloud_cos import CosServiceError
 from decorator.decorator_permission import validate_login, validate_all
@@ -263,7 +263,7 @@ def upload_video(request):
             title=title,
             description=description,
             user_id=user_id,
-            created_at=datetime.datetime.now(),
+            created_at=timezone.localtime(timezone.now()),
         )
         video_id = video.id
         cover_id=video_id
@@ -456,6 +456,7 @@ def view_video(request):
             video = Video.objects.get(id=video_id)
             # 将字典列表作为JSON响应返回
             video.view_amount += 1
+            video.save()
             v=video.to_dict()
             user = request.user
             user_id=user.id
@@ -523,7 +524,9 @@ def comment_video(request):
         user_id=user.id
         video_id = request.POST.get('video_id')
         content = request.POST.get('content')
-        created_at =  datetime.datetime.now()
+        created_at =  timezone.localtime(timezone.now())
+        print("111 video_id: ",video_id)
+        print("timezone.localtime(timezone.now()) : ",created_at)
         try:
             video = Video.objects.get(id=video_id)
             if len(content) == 0:
@@ -538,7 +541,7 @@ def comment_video(request):
             comment.save()
             title = "有人给你点赞啦"
             content = "亲爱的" + u.username + ' 你好呀!\n有人给你点赞啦，快去看看吧'
-            send_sys_notification(2, u.username , title, content, 2, video.id)
+            send_sys_notification(2, u.id , title, content, 2, video.id)
             return JsonResponse({'errno': 0, 'msg': '评论成功'})
         except Video.DoesNotExist:
             return JsonResponse({'errno': 1, 'msg': '视频不存在'})
@@ -628,7 +631,7 @@ def like_video(request):
         user = request.user
         user_id = user.id
         video_id = request.POST.get('video_id')
-        print('hahha',user.id)
+        #print('hahha',user.id)
         try:
             video=Video.objects.get(id=video_id)
             # 检查该用户是否已经点赞过该视频
@@ -641,7 +644,7 @@ def like_video(request):
                     video.like_amount = 0
                 video.save()
                 # print('video.like_amount : ',video.like_amount)
-                return JsonResponse({'errno': 1, 'msg': "点赞取消成功！"})
+                return JsonResponse({'errno': 0, 'msg': "点赞取消成功！"})
             except Like.DoesNotExist:
                 # 用户没有点赞过该视频，则添加点赞记录
                 like = Like(user_id=user_id, video_id=video_id)
@@ -664,7 +667,7 @@ def create_favorite(request):
         # 获取请求中传入的参数
         user = request.user
         user_id=user.id
-        print('hah',user_id)
+        #print('hah',user_id)
         title = request.POST.get('title')
         description = "这是一个收藏夹"
         is_private=0

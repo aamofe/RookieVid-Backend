@@ -60,7 +60,7 @@ def send_vcode(request):
             return JsonResponse(
                 {'from': EMAIL_FROM, 'to': to_email, 'errno': 1, 'msg': "验证码发送失败，请检查邮箱地址"})
     else:
-        return JsonResponse({'error': 1, 'msg': "请求方式错误"})
+        return JsonResponse({'errno': 1, 'msg': "请求方式错误"})
 
 
 # 先验证验证码是否正确，若正确检验用户名密码是否合法，完成注册
@@ -113,7 +113,7 @@ def register(request):
             new_user.save()  # 一定要save才能保存到数据库中
             return JsonResponse({'uid': uid, 'errno': 0, 'msg': "注册成功"})
     else:
-        return JsonResponse({'error': 1, 'msg': "请求方式错误"})
+        return JsonResponse({'errno': 1, 'msg': "请求方式错误"})
 
 
 @csrf_exempt
@@ -191,9 +191,12 @@ def display_profile(request):
 @validate_login
 def edit_profile(request):
     if request.method == 'POST':
+        print(request)
         username = request.POST.get('username')
         signature = request.POST.get('signature')
         # 能不能有自动填入之类的（？
+        print(username)
+        print(signature)
         if re.match('.{1,20}', str(username)) is None:
             return JsonResponse({'errno': 0, 'msg': "用户名不合法"})
         user = request.user
@@ -349,7 +352,7 @@ def create_follow(request):
         follow = Follow(follower_id=follower_id, following_id=following_id)
         follow.save()
         send_sys_notification(follower_id, following_id, '新增关注', f'{follower_user}开始关注你啦', 1, follower_id)
-        resp = {'follower': follower_id, 'following': following_id, 'errno': 0, 'msg': '关注成功'}
+        resp = {'follower': follower_id, 'following': int(following_id), 'errno': 0, 'msg': '关注成功'}
         return JsonResponse(resp)
     else:
         return JsonResponse({'errno': 1, 'msg': "请求方式错误"})
@@ -363,7 +366,7 @@ def remove_follow(request):
         follower_id = request.user.id
         follow = Follow.objects.get(follower_id=follower_id, following_id=following_id)
         follow.delete()
-        resp = {'follower': follower_id, 'following': following_id, 'errno': 0, 'msg': '取关成功'}
+        resp = {'follower': follower_id, 'following': int(following_id), 'errno': 0, 'msg': '取关成功'}
         return JsonResponse(resp)
     else:
         return JsonResponse({'errno': 1, 'msg': "请求方式错误"})
@@ -399,6 +402,9 @@ def get_followers(request):
             for follower in followers:
                 follower_user = User.objects.get(id=follower.follower_id)
                 follower_data = User.to_simple_dict(follower_user)
+                follower_data['is_refollowed'] = 0
+                if Follow.objects.filter(following_id=follower_user.id, follower_id=user_id).exists():
+                    follower_data['is_refollowed'] = 1
                 follower_list.append(follower_data)
             return JsonResponse({'errno': 0, 'msg': "粉丝列表查询成功", 'data': follower_list})
         else:
@@ -437,13 +443,13 @@ def get_favorite(request):
             if int(user_id) == user.id:  # 看自己的收藏夹
                 favorites = Favorite.objects.filter(user_id=user_id)
             else:
-                favorites = Favorite.objects.filter(user_id=user_id, status=0)
+                favorites = Favorite.objects.filter(user_id=user_id, is_private=0)
             favorite_list = []
             for favorite in favorites:
                 favorite_list.append(Favorite.to_dict(favorite))
             return JsonResponse({'errno': 0, 'favorite': favorite_list, 'msg': "获取收藏夹成功"})
         except Favorite.DoesNotExist:
-            return JsonResponse({'errno': 1, 'msg': "收藏夹不存在"})
+            return JsonResponse({'errno': 0, 'msg': "用户未创建收藏夹"})
 
     else:
         return JsonResponse({'errno': 1, 'msg': "请求方法错误"})
@@ -478,7 +484,8 @@ def get_favlist(request):
 @validate_login
 def delete_favorite(request):
     if request.method == 'POST':
-        favorite_id = request.GET.get('favorite_id')
+        favorite_id = request.POST.get('favorite_id')
+        print(favorite_id)
         try:
             favorite = Favorite.objects.get(id=favorite_id)
         except Favorite.DoesNotExist:
