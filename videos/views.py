@@ -859,18 +859,37 @@ def complain_video(request):
         user=request.user
         video_id=request.POST.get('video_id')
         content=request.POST.get('content')
-        created_at=datetime.datetime.now()
         try :
             video=Video.objects.get(id=video_id)
             if len(content)==0:
                 return JsonResponse({'errno': 1, 'msg': "投诉原因不能为空！"})
-            complain = Complain(video_id=video_id, user_id=user.id, reason=content, created_at=created_at,status=0)
+            complain = Complain(video_id=video_id, user_id=user.id, reason=content,status=0)
             complain.save()
+            complain_time = complain.created_at
+            complain_timezone = complain_time.tzinfo
+            print('投诉时间:', complain_time)
+            print('投诉时间的时区:', complain_timezone)
             return JsonResponse({'errno': 0, 'msg': "投诉成功！"})
         except Video.DoesNotExist:
             return JsonResponse({'errno': 1, 'msg': "视频不存在！"})
     else:
         return JsonResponse({'errno': 1, 'msg': "请求方法错误！"})
+
+
+def get_data(request):
+    if request.method=='GET':
+        user=request.user
+        #评论数 粉丝 播放量 点赞 收藏 投稿的视频总数
+        amount={}
+        total_comment_amount=0
+        follower_amount=0
+        total_view_amount=0
+        total_like_amount=0
+        total_favorite_amount=0
+        video_amount=0
+        videos=Video.objects.filter(user_id=user.id)
+        if videos.exists():
+            video_amount=len(videos)
 
 
 

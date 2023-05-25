@@ -120,6 +120,9 @@ DATABASES = {
         "PASSWORD": "aamofe12@",
         "HOST": "101.43.159.45",
         "PORT": "3306",
+        'OPTIONS': {
+            'init_command': "SET time_zone='+08:00'",
+        },
     }
 }
 
