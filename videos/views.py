@@ -43,7 +43,10 @@ def get_video_by_label(request):
         videos = Video.objects.filter(label=label,reviewed_status=1)
         if num==-1:
             num=len(videos)
-        #print('num : ',num)
+        elif num<-1:
+            return JsonResponse({'errno': 1, 'msg': "数量错误！"})
+        else :
+            num=min(num,len(videos))
         random_videos = sample(list(videos), num)
         video_list = []
         for video in random_videos:
@@ -297,7 +300,7 @@ def upload_video(request):
         #上传视频
         res=upload_video_method(video_file,video_id)
         if res==1:
-            JsonResponse({'errno': 1, 'msg': "视频格式不合法"})
+            return JsonResponse({'errno': 1, 'msg': "视频格式不合法"})
         
         video.cover_url = cover_url
         video.save()
@@ -373,7 +376,7 @@ def delete_video(request):
             if not (user.id==video.user_id or user.status==1):
                 return JsonResponse({'errno': 1, 'msg': '没有权限删除'})
             video.delete()
-            delete_cover_method(video.id,file_extension)
+            delete_cover_method("cover_file",video.id,file_extension)
             delete_video_method(video.id)
             return JsonResponse({'errno': 0, 'msg': '删除成功'})
         except Video.DoesNotExist:
@@ -559,13 +562,12 @@ def get_comment(request):
                 reply = Comment.objects.filter(video_id=video_id, comment_id=c.id)
                 for r in reply:
                     cc['reply'].append(r.to_dict())
-                comment_list.append(cc)
                 comment_amount += 1
                 total_comment_amount += len(reply) + 1
                 cc['reply_amount'] = len(reply)
                 comment_list.append(cc)
-            amount['total_comment_amount '] = total_comment_amount
-            amount['comment_amount '] = comment_amount
+            amount['total_comment_amount'] = total_comment_amount
+            amount['comment_amount'] = comment_amount
             return JsonResponse({'errno': 0, 'msg': "返回成功！", 'comment': comment_list, 'amount': amount}, safe=False)
         except Video.DoesNotExist:
             return JsonResponse({'errno': 1, 'msg': '视频不存在'})
