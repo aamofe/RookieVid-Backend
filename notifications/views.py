@@ -13,12 +13,13 @@ from accounts.models import User
 # 管理端给用户发送通知
 def send_notification(request):
     if request.method == 'POST':
-        send_to = request.POST.getlist("send_to")
-        content = request.POST.get("content")
+        send_to = request.POST.getlist('send_to')
+        title = request.POST.get('title')
+        content = request.POST.get('content')
         if request.user.status != 1:
             return JsonResponse({'errno': 1, 'msg': "没有管理员权限"})
         for user_id in send_to:
-            new_notification = Notification(send_from=0, send_to=user_id, title='管理员通知', content=content, link_type=0,
+            new_notification = Notification(send_from=0, send_to=user_id, title=title, content=content, link_type=0,
                                             link_id=0)
             new_notification.save()
         return JsonResponse({'errno': 0, 'msg': "通知发送成功"})

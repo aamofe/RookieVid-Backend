@@ -113,7 +113,7 @@ def register(request):
             new_user.save()  # 一定要save才能保存到数据库中
             return JsonResponse({'uid': uid, 'errno': 0, 'msg': "注册成功"})
     else:
-        return JsonResponse({'error': 1, 'msg': "请求方式错误"})
+        return JsonResponse({'errno': 1, 'msg': "请求方式错误"})
 
 
 @csrf_exempt
@@ -138,7 +138,7 @@ def login(request):
         else:
             return JsonResponse({'errno': 1, 'msg': "密码错误"})
     else:
-        return JsonResponse({'error': 1, 'msg': "请求方式错误"})
+        return JsonResponse({'errno': 1, 'msg': "请求方式错误"})
 
 
 @csrf_exempt
@@ -154,7 +154,10 @@ def display_myprofile(request):
     if request.method == 'GET':
         user = request.user
         context = user.to_dict()
-        return JsonResponse({'context': context, 'status': 0, 'errno': 0, 'msg': '查询用户信息成功'})
+        following = Follow.objects.filter(follower_id=user.id).count()
+        follower = Follow.objects.filter(following_id=user.id).count()
+        return JsonResponse({'context': context, 'following': following, 'follower': follower, 'status': 0, 'errno': 0,
+                             'msg': '查询用户信息成功'})
     else:
         return JsonResponse({'errno': 1, 'msg': "请求方式错误"})
 
@@ -170,17 +173,22 @@ def display_profile(request):
 
         if int(user_id) == user.id:  # 看自己的主页status是0，看别人的是1
             context = User.to_dict(user)
-            return JsonResponse({'context': context, 'status': 0, 'errno': 0, 'msg': '查询用户信息成功'})
+            following = Follow.objects.filter(follower_id=user.id).count()
+            follower = Follow.objects.filter(following_id=user.id).count()
+            return JsonResponse({'context': context, 'following': following, 'follower': follower, 'status': 0,
+                                 'errno': 0, 'msg': '查询用户信息成功'})
         else:
             try:
                 user = User.objects.get(id=user_id)
                 context = User.to_dict(user)
+                following = Follow.objects.filter(follower_id=user.id).count()
+                follower = Follow.objects.filter(following_id=user.id).count()
                 is_followed = 0
                 if Follow.objects.filter(follower_id=request.user.id, following_id=user.id).exists():
                     is_followed = 1
                 print(type(is_followed))
-                return JsonResponse({'context': context, 'status': 1, 'is_followed': is_followed, 'errno': 0,
-                                     'msg': '查询用户信息成功'})
+                return JsonResponse({'context': context, 'following': following, 'follower': follower, 'status': 1,
+                                     'is_followed': is_followed, 'errno': 0, 'msg': '查询用户信息成功'})
             except User.DoesNotExist:
                 return JsonResponse({'errno': 1, 'msg': '用户不存在'})
     else:
@@ -346,10 +354,12 @@ def create_follow(request):
             return JsonResponse({'errno': 1, 'msg': "用户不存在"})
         follower_id = request.user.id
         follower_user = request.user.username
+        if Follow.objects.filter(follower_id=follower_id, following_id=following_id).exists():
+            return JsonResponse({'errno': 1, 'msg': "已关注用户"})
         follow = Follow(follower_id=follower_id, following_id=following_id)
         follow.save()
         send_sys_notification(follower_id, following_id, '新增关注', f'{follower_user}开始关注你啦', 1, follower_id)
-        resp = {'follower': follower_id, 'following': following_id, 'errno': 0, 'msg': '关注成功'}
+        resp = {'follower': follower_id, 'following': int(following_id), 'errno': 0, 'msg': '关注成功'}
         return JsonResponse(resp)
     else:
         return JsonResponse({'errno': 1, 'msg': "请求方式错误"})
@@ -361,10 +371,13 @@ def remove_follow(request):
     if request.method == 'POST':
         following_id = request.POST.get('following_id')  # 传入参数改成user.id
         follower_id = request.user.id
-        follow = Follow.objects.get(follower_id=follower_id, following_id=following_id)
-        follow.delete()
-        resp = {'follower': follower_id, 'following': following_id, 'errno': 0, 'msg': '取关成功'}
-        return JsonResponse(resp)
+        try:
+            follow = Follow.objects.get(follower_id=follower_id, following_id=following_id)
+            follow.delete()
+            resp = {'follower': follower_id, 'following': int(following_id), 'errno': 0, 'msg': '取关成功'}
+            return JsonResponse(resp)
+        except Follow.DoesNotExist:
+            return JsonResponse({'errno': 1, 'msg': "未关注用户"})
     else:
         return JsonResponse({'errno': 1, 'msg': "请求方式错误"})
 
@@ -399,6 +412,9 @@ def get_followers(request):
             for follower in followers:
                 follower_user = User.objects.get(id=follower.follower_id)
                 follower_data = User.to_simple_dict(follower_user)
+                follower_data['is_refollowed'] = 0
+                if Follow.objects.filter(following_id=follower_user.id, follower_id=user_id).exists():
+                    follower_data['is_refollowed'] = 1
                 follower_list.append(follower_data)
             return JsonResponse({'errno': 0, 'msg': "粉丝列表查询成功", 'data': follower_list})
         else:
@@ -506,13 +522,11 @@ def delete_favorite_video(request):
         delete = request.POST.getlist('delete_id')
         user = request.user
         try:
-            for favlist_id in delete:
-                favorite_video = Favlist.objects.get(id=favlist_id)
+            for video_id in delete:
+                favorite_video = Favlist.objects.get(favorite_id=favorite_id, video_id=video_id)
                 if favorite_video.user_id != user.id:
                     return JsonResponse({'errno': 1, 'msg': "没有操作权限"})
-                if favorite_video.favorite_id != int(favorite_id):
-                    return JsonResponse({'errno': 1, 'msg': "视频不在该收藏夹中"})
-                if not Video.objects.filter(id=favorite_video.video_id).exists():
+                if not Video.objects.filter(id=video_id).exists():
                     favorite_video.delete()
                     return JsonResponse({'errno': 0, 'msg': "视频失效，已移除收藏"})
                 favorite_video.delete()
