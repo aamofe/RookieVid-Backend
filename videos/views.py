@@ -285,7 +285,6 @@ def upload_video(request):
             title=title,
             description=description,
             user_id=user_id,
-            created_at=timezone.localtime(timezone.now()),
         )
         video_id = video.id
         cover_id=video_id
@@ -573,9 +572,6 @@ def comment_video(request):
         user_id=user.id
         video_id = request.POST.get('video_id')
         content = request.POST.get('content')
-        created_at =  timezone.localtime(timezone.now())
-        print("111 video_id: ",video_id)
-        print("timezone.localtime(timezone.now()) : ",created_at)
         try:
             video = Video.objects.get(id=video_id)
             if len(content) == 0:
@@ -584,7 +580,6 @@ def comment_video(request):
                 user_id=user_id,
                 content=content,
                 video_id=video_id,
-                created_at=created_at,
                 comment_id=0,
             )
             u=User.objects.get(id=video.user_id)
@@ -834,15 +829,22 @@ def favorite_video(request):
 def is_complaint(request):
     if request.method=='GET':
         user=request.user
-        video_id=request.POST.get('video_id')
-        created_at=datetime.datetime.now()
-        try:
-            complain=Complain.objects.get(video_id=video_id,user_id=user.id)
-            if (complain.created_at-created_at).seconds<3600:
-                return JsonResponse({'errno': 0,'is_complaint':1, 'msg': "投诉间隔小于1小时！"})
+        video_id=request.GET.get('video_id')
+        created_at = datetime.datetime.now()  # 获取当前时间，可以根据需要调整时区
+        created_at = timezone.make_aware(created_at, timezone.get_current_timezone())  # 将时间对象设定为带时区信息的
+
+        #print('user_id: ', user.id, 'video_id: ', video_id)
+        complains = Complain.objects.filter(video_id=video_id, user_id=user.id).order_by('created_at')
+        if complains.exists():
+            complain = complains.first()
+            complain_created_at = timezone.localtime(complain.created_at)
+            content='上一次投诉时间: '+str(complain_created_at)+ '这次投诉时间: '+str(created_at)
+            if (complain_created_at - created_at).total_seconds() < 3600:
+                return JsonResponse({'errno': 0,'is_complaint':1, 'msg': "投诉间隔小于1小时！"+content})
             else:
                 return JsonResponse({'errno': 0, 'is_complaint': 0, 'msg': "可以投诉！"})
-        except Complain.DoesNotExist:
+        else :
+            print("不存在 啊 ")
             return JsonResponse({'errno': 0,'is_complaint':0, 'msg': "可以投诉！"})
 @validate_login
 def complain_video(request):
