@@ -546,20 +546,27 @@ def view_video(request):
 @validate_all
 def get_comment(request):
     if request.method == 'GET':
-        video_id=request.GET.get('video_id')
+        video_id = request.GET.get('video_id')
         try:
-            video=Video.objects.get(id=video_id)
-            comments = Comment.objects.filter(video_id=video_id,comment_id=0).order_by('created_at')
+            video = Video.objects.get(id=video_id)
+            comments = Comment.objects.filter(video_id=video_id, comment_id=0).order_by('created_at')
             comment_list = []
+            total_comment_amount = 0
+            comment_amount = 0
+            amount = {}
             for c in comments:
                 cc = c.to_dict()
                 reply = Comment.objects.filter(video_id=video_id, comment_id=c.id)
                 for r in reply:
                     cc['reply'].append(r.to_dict())
                 comment_list.append(cc)
+                comment_amount += 1
+                total_comment_amount += len(reply) + 1
                 cc['reply_amount'] = len(reply)
                 comment_list.append(cc)
-            return JsonResponse({'errno': 0, 'msg': "返回成功！", 'comment': comment_list}, safe=False)
+            amount['total_comment_amount '] = total_comment_amount
+            amount['comment_amount '] = comment_amount
+            return JsonResponse({'errno': 0, 'msg': "返回成功！", 'comment': comment_list, 'amount': amount}, safe=False)
         except Video.DoesNotExist:
             return JsonResponse({'errno': 1, 'msg': '视频不存在'})
     else:
