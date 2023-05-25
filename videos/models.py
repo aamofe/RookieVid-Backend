@@ -98,23 +98,21 @@ class Comment(models.Model):
     video_id = models.IntegerField(verbose_name='被评论的视频ID',null=True )
     content=models.CharField(verbose_name='评论内容',max_length=255)
     created_at = models.DateTimeField(verbose_name='评论时间',auto_now_add=True)
+    comment_id= models.IntegerField(verbose_name='回复的评论ID' ,default=0,null=True)#0表示为评论，其他表示为回复
     class Meta:
         app_label = 'videos'
     def to_dict(self):
-        reply=Reply.objects.filter(comment_id=self.id)
-        reply_list=[]
-        for r in reply:
-            reply_list.append(r.to_dict())
         return {
-            'id':self.id,
-            'user_id':self.user_id,
-            'user_name':User.objects.get(id=self.user_id).username,
-            'avatar_url':User.objects.get(id=self.user_id).avatar_url,
-            'video_id':self.video_id,
-            'content':self.content,
-            'created_at':self.created_at,
-            'reply':reply_list,
-            'reply_amount':len(reply_list),
+            'id': self.id,
+            #'comment_id': self.comment_id,
+            'user_id': self.user_id,
+            'user_name': User.objects.get(id=self.user_id).username,
+            'avatar_url': User.objects.get(id=self.user_id).avatar_url,
+            'video_id': self.video_id,
+            'content': self.content,
+            'created_at': self.created_at,
+            'reply':[],
+            'reply_amount':0,
         }
 
 class Reply(models.Model):
@@ -151,7 +149,7 @@ class Favorite(models.Model):
             'id':self.id,
             'title':self.title,
             'description':self.description,
-            'status':self.status,
+            'is_private':self.is_private,
             'user_id':self.user_id,
             'cover_url':self.cover_url,
         }

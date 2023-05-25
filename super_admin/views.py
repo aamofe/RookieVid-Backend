@@ -149,3 +149,21 @@ def get_complain_video(request):
         return JsonResponse({'errno': 1, 'msg': "请求方法错误！"})
 
 
+@validate_login
+def get_all_video(request):
+    if request.method == 'GET':
+        user=request.user
+        if user.status!=1:
+            return JsonResponse({'errno': 1, 'msg': "没有管理员权限！"})
+        try:
+            videos=Video.objects.all()
+            video_list=[]
+            for v in videos:
+                video_list.append(v.to_dict())
+            return JsonResponse({'errno': 0, 'video': video_list, 'msg': "获取所有视频成功"})
+        except Video.DoesNotExist:
+            return JsonResponse({'errno': 1, 'video': video_list, 'msg': "暂时没有视频！"})
+    else:
+        return JsonResponse({'errno': 1, 'msg': "请求方法错误！"})
+
+

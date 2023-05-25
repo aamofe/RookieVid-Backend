@@ -60,7 +60,7 @@ def send_vcode(request):
             return JsonResponse(
                 {'from': EMAIL_FROM, 'to': to_email, 'errno': 1, 'msg': "验证码发送失败，请检查邮箱地址"})
     else:
-        return JsonResponse({'error': 1, 'msg': "请求方式错误"})
+        return JsonResponse({'errno': 1, 'msg': "请求方式错误"})
 
 
 # 先验证验证码是否正确，若正确检验用户名密码是否合法，完成注册
@@ -199,9 +199,12 @@ def display_profile(request):
 @validate_login
 def edit_profile(request):
     if request.method == 'POST':
+        print(request)
         username = request.POST.get('username')
         signature = request.POST.get('signature')
         # 能不能有自动填入之类的（？
+        print(username)
+        print(signature)
         if re.match('.{1,20}', str(username)) is None:
             return JsonResponse({'errno': 0, 'msg': "用户名不合法"})
         user = request.user
@@ -453,13 +456,13 @@ def get_favorite(request):
             if int(user_id) == user.id:  # 看自己的收藏夹
                 favorites = Favorite.objects.filter(user_id=user_id)
             else:
-                favorites = Favorite.objects.filter(user_id=user_id, status=0)
+                favorites = Favorite.objects.filter(user_id=user_id, is_private=0)
             favorite_list = []
             for favorite in favorites:
                 favorite_list.append(Favorite.to_dict(favorite))
             return JsonResponse({'errno': 0, 'favorite': favorite_list, 'msg': "获取收藏夹成功"})
         except Favorite.DoesNotExist:
-            return JsonResponse({'errno': 1, 'msg': "收藏夹不存在"})
+            return JsonResponse({'errno': 0, 'msg': "用户未创建收藏夹"})
 
     else:
         return JsonResponse({'errno': 1, 'msg': "请求方法错误"})
@@ -472,7 +475,7 @@ def get_favlist(request):
         favorite_id = request.GET.get('favorite_id')
         video_list = []
         try:
-            Favorite.objects.get(id=favorite_id)
+            favorite = Favorite.objects.get(id=favorite_id)
         except Favorite.DoesNotExist:
             return JsonResponse({'errno': 1, 'msg': "收藏夹不存在", 'data': video_list})
 
@@ -482,9 +485,9 @@ def get_favlist(request):
                 video = Video.objects.get(id=favlist.video_id)
                 video_data = Video.to_simple_dict(video)
                 video_list.append(video_data)
-            return JsonResponse({'errno': 0, 'msg': "收藏列表查询成功", 'data': video_list})
+            return JsonResponse({'errno': 0, 'msg': "收藏列表查询成功", 'data': video_list, 'cover_url': favorite.cover_url})
         else:
-            return JsonResponse({'errno': 0, 'msg': "收藏夹为空", 'data': video_list})
+            return JsonResponse({'errno': 0, 'msg': "收藏夹为空", 'data': video_list, 'cover_url': favorite.cover_url})
 
     else:
         return JsonResponse({'errno': 1, 'msg': "请求方法错误"})
@@ -494,7 +497,8 @@ def get_favlist(request):
 @validate_login
 def delete_favorite(request):
     if request.method == 'POST':
-        favorite_id = request.GET.get('favorite_id')
+        favorite_id = request.POST.get('favorite_id')
+        print(favorite_id)
         try:
             favorite = Favorite.objects.get(id=favorite_id)
         except Favorite.DoesNotExist:
