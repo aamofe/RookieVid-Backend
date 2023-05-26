@@ -1,3 +1,4 @@
+import pprint
 from django.http import JsonResponse
 from django.shortcuts import render
 
@@ -6,7 +7,7 @@ from notifications.views import send_sys_notification
 from super_admin.models import Complain
 from videos.models import Video
 import datetime
-
+from django.utils import timezone
 # Create your views here.
 from decorator.decorator_permission import validate_login, validate_all
 @validate_login
@@ -35,58 +36,70 @@ def review_video(request):
         res=request.POST.get('res')
         reason=request.POST.get('reason')
         try:
-            video=Video.objects.get(id=video_id)
+            video=Video.objects.get(id=video_id,reviewed_status=0)
             user_id=video.user_id
             if len(res)==0:
                 return JsonResponse({'errno': 0, 'msg': "审核结果不能为空！"})
             if res==0 :#审核不通过
                 try :#判断是否被投诉过
-                    complain=Complain.objects.filter(video_id=video_id)
-                    for c in complain:
+                    complains=Complain.objects.filter(video_id=video_id)
+                    for c in complains:
                         if c.is_message_sent==0:
                             u=User.objects.get(id=c.user_id)
                             title = "投诉成功"
                             content = "亲爱的" + u.username + ' 你好呀!\n你的投诉已通过审核，平台已下架该视频'
-                            send_sys_notification(0, u.username, title, content, 0)
+                            complain=Complain.objects.get(id=c.id)
+                            if complain.status==0:
+                                send_sys_notification(0, u.id, title, content, 4,u.id)
+                                user_complain=Complain.objects.filter(video_id=video_id,user_id=c.user_id,status=0)
+                                for uc in user_complain:
+                                    uc.is_message_sent=1
+                                    uc.status=1
+                                    uc.save()
                             u=User.objects.get(id=user_id)
                             title = "你的视频已被下架"
                             content = "亲爱的" + u.username + ' 你好呀!\n有人投诉了你的视频，经人工复审，你的视频已被下架'
-                            send_sys_notification(0,u.username,title,content,0)
+                            send_sys_notification(0,u.id,title,content,4,u.id)
                             c.is_message_sent=1
                             c.status=1
                             c.save()
+                            
                     video.delete()
                 except Complain.DoesNotExist:
                     pass
                 u = User.objects.get(id=user_id)
                 title = "你的视频审核未通过"
                 content = "亲爱的" + u.username + ' 你好呀!\n经人工复审，你的视频已被下架'
-                send_sys_notification(0, u.username, title, content, 0)
+                send_sys_notification(0, u.id, title, content,4, u.id)
                 return JsonResponse({'errno': 0, 'msg': "审核不通过！"})
             else:
-                video.reviewed_status=res
-                video.reviewed_at=datetime.datetime.now()
+                video.reviewed_status=0#记得修改！！！
+                video.reviewed_at=timezone.now()
                 video.save()
                 try :#判断是否被投诉过
-                    complain=Complain.objects.filter(video_id=video_id)
-                    for c in complain:
-                        if c.is_message_sent==0:
+                    complains=Complain.objects.filter(video_id=video_id,status=0)
+                    for c in complains:
+                        if c.status==0:
                             u = User.objects.get(id=c.user_id)
-                            title = "投诉成功"
+                            title = "投诉失败"
                             content = "亲爱的" + u.username + ' 你好呀!\n你的投诉未通过审核'
-                            send_sys_notification(0, u.username, title, content, 0)
-                            c.is_message_sent=1
-                            c.status=1
-                            c.save()
+                            complain=Complain.objects.get(id=c.id)
+                            if complain.status==0:
+                                send_sys_notification(0, u.id, title, content, 4,u.id)
+                                user_complain=Complain.objects.filter(video_id=video_id,user_id=c.user_id,status=0)
+                                for uc in user_complain:
+                                    uc.is_message_sent=1
+                                    uc.status=1
+                                    uc.save()
                 except Complain.DoesNotExist:
                     pass
                 u = User.objects.get(id=user_id)
                 title = "你的视频审核通过审核"
                 content = "亲爱的" + u.username + ' 你好呀!\n经人工复审，你的视频已通过审核，快去看看吧'
-                send_sys_notification(2, u.username, title, content, video.id)
+                send_sys_notification(0, u.id, title, content,2, video.id)
                 return JsonResponse({'errno': 0, 'msg': "审核通过！"})
         except Video.DoesNotExist:
-            return JsonResponse({'errno': 1, 'msg': "视频不存在！"})
+            return JsonResponse({'errno': 1, 'msg': "视频已被审核！"})
     else:
         return JsonResponse({'errno': 1, 'msg': "请求方法错误！"})
 
