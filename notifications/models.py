@@ -1,5 +1,8 @@
 from django.db import models
+from datetime import timedelta, timezone
+import pytz
 
+shanghai_tz = pytz.timezone('Asia/Shanghai')
 
 # Create your models here.
 
@@ -15,6 +18,7 @@ class Notification(models.Model):
     created_at = models.DateTimeField('通知创建时间', auto_now_add=True)
 
     def to_dict(self):
+        created_at_shanghai = (self.created_at.astimezone(shanghai_tz)).strftime('%Y-%m-%d %H:%M:%S')
         return {
             'id': self.id,
             'send_to': self.send_to,
@@ -24,14 +28,15 @@ class Notification(models.Model):
             'link_type': self.link_type,
             'link_id': self.link_id,
             'is_read': self.is_read,
-            'create_at': self.created_at,
+            'create_at': created_at_shanghai,
         }
 
     def to_simple_dict(self):
+        created_at_shanghai = (self.created_at.astimezone(shanghai_tz)).strftime('%Y-%m-%d %H:%M:%S')
         return {
             'id': self.id,
             'title': self.title,
             'content': self.content,
-            'create_at': self.created_at,
+            'create_at': created_at_shanghai,
         }
 

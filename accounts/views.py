@@ -256,7 +256,7 @@ def upload_avatar_method(avatar_file, avatar_id, url):
     )
     res = int(response_submit['Result'])
     if res == 1:
-        delete_avatar_method()
+        delete_avatar_method(avatar_id, file_extension)
         return res, avatar_url, response_submit['Label']
     return res, avatar_url, None
 
