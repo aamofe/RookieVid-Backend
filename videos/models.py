@@ -1,8 +1,11 @@
 import os
+from datetime import timedelta, timezone
+
+import pytz
 from django.db import models
 
 from accounts.models import User, Follow
-
+shanghai_tz = pytz.timezone('Asia/Shanghai')
 
 class Like(models.Model):
     user_id=models.IntegerField(verbose_name='点赞者ID',null=True )
@@ -11,11 +14,12 @@ class Like(models.Model):
     class Meta:
         app_label = 'videos'
     def to_dict(self):
+        created_at_shanghai = (self.created_at.astimezone(shanghai_tz)).strftime('%Y-%m-%d %H:%M:%S')
         return {
             'id':self.id,
             'user_id':self.user_id,
             'video_id':self.video_id,
-            'created_at':self.created_at,
+            'created_at':created_at_shanghai,
         }
 
 class Favlist(models.Model):
@@ -51,6 +55,7 @@ class Video(models.Model):
     def to_simple_dict(self):
         user = User.objects.get(id=self.user_id)
         fav_amount = len(Favlist.objects.filter(video_id=self.id).values('user_id').distinct())
+        created_at_shanghai = (self.created_at.astimezone(shanghai_tz)).strftime('%Y-%m-%d %H:%M:%S')
         return {
             'id': self.id,
             'label': self.label,
@@ -58,7 +63,7 @@ class Video(models.Model):
             'description': self.description,
             'video_url': self.video_url,
             'cover_url': self.cover_url,
-            'created_at': self.created_at,
+            'created_at': created_at_shanghai,
             'reviewed_at': self.reviewed_at,
             'reviewed_status': self.reviewed_status,
             'view_amount': self.view_amount,
@@ -70,6 +75,7 @@ class Video(models.Model):
         user=User.objects.get(id=self.user_id)
         fav_amount = len(Favlist.objects.filter(video_id=self.id).values('user_id').distinct())
         follower=Follow.objects.filter(following_id=user.id)
+        created_at_shanghai = (self.created_at.astimezone(shanghai_tz)).strftime('%Y-%m-%d %H:%M:%S')
         return {
             'id':self.id,
             'label':self.label,
@@ -77,7 +83,7 @@ class Video(models.Model):
             'description':self.description,
             'video_url': self.video_url,
             'cover_url': self.cover_url,
-            'created_at':self.created_at,
+            'created_at':created_at_shanghai,
             'reviewed_at':self.reviewed_at,
             'reviewed_status':self.reviewed_status,
             'view_amount':self.view_amount,
@@ -102,6 +108,7 @@ class Comment(models.Model):
     class Meta:
         app_label = 'videos'
     def to_dict(self):
+        created_at_shanghai = (self.created_at.astimezone(shanghai_tz)).strftime('%Y-%m-%d %H:%M:%S')
         return {
             'id': self.id,
             #'comment_id': self.comment_id,
@@ -110,7 +117,7 @@ class Comment(models.Model):
             'avatar_url': User.objects.get(id=self.user_id).avatar_url,
             'video_id': self.video_id,
             'content': self.content,
-            'created_at': self.created_at,
+            'created_at': created_at_shanghai,
             'reply':[],
             'reply_amount':0,
         }
@@ -125,6 +132,7 @@ class Reply(models.Model):
     class Meta:
         app_label = 'videos'
     def to_dict(self):
+        created_at_shanghai = (self.created_at.astimezone(shanghai_tz)).strftime('%Y-%m-%d %H:%M:%S')
         return {
             'id': self.id,
             'user_id':self.user_id,
@@ -133,7 +141,7 @@ class Reply(models.Model):
             'avatar_url':User.objects.get(id=self.user_id).avatar_url,
             'comment_id':self.comment_id,
             'content':self.content,
-            'created_at':self.created_at
+            'created_at':created_at_shanghai,
         }
 
 class Favorite(models.Model):
@@ -145,6 +153,7 @@ class Favorite(models.Model):
     cover_url = models.CharField(verbose_name='封面路径', default='https://aamofe-1315620690.cos.ap-beijing.myqcloud.com/favorite_cover/0.png',max_length=128)
     created_at = models.DateTimeField(verbose_name='创建收藏夹时间',null=True, auto_now_add=True)
     def to_dict(self):
+        created_at_shanghai = (self.created_at.astimezone(shanghai_tz)).strftime('%Y-%m-%d %H:%M:%S')
         return {
             'id':self.id,
             'title':self.title,
@@ -152,5 +161,6 @@ class Favorite(models.Model):
             'is_private':self.is_private,
             'user_id':self.user_id,
             'cover_url':self.cover_url,
+            'created_at:':created_at_shanghai,
         }
 

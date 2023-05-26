@@ -8,6 +8,7 @@ import tempfile
 import uuid
 import PIL
 import cv2
+import pytz
 from django.utils import timezone
 from qcloud_cos.cos_comm import CiDetectType
 from qcloud_cos import CosServiceError
@@ -841,24 +842,25 @@ def favorite_video(request):
     else:
         return JsonResponse({'errno': 1, 'msg': "请求方法错误！"})
 
-
+shanghai_tz = pytz.timezone('Asia/Shanghai')
 @validate_login
 def is_complaint(request):
     if request.method=='GET':
         user=request.user
         video_id=request.GET.get('video_id')
-        created_at = datetime.datetime.now()  # 获取当前时间，可以根据需要调整时区
-        created_at = timezone.make_aware(created_at, timezone.get_current_timezone())  # 将时间对象设定为带时区信息的
+        created_at =timezone.now()
         try:
             video=Video.objects.get(id=video_id)
-            #print('user_id: ', user.id, 'video_id: ', video_id)
             complains = Complain.objects.filter(video_id=video_id, user_id=user.id).order_by('created_at')
             if complains.exists():
-                complain = complains.first()
-                complain_created_at = timezone.localtime(complain.created_at)
-                content='上一次投诉时间: '+str(complain_created_at)+ '这次投诉时间: '+str(created_at)
-                if (complain_created_at - created_at).total_seconds() < 3600:
-                    return JsonResponse({'errno': 0,'is_complaint':1, 'msg': "投诉间隔小于1小时！"+content})
+                complain = complains.last()
+
+                content = '上一次投诉时间:' + (complain.created_at+datetime.timedelta(hours=8)).strftime(
+                    '%Y-%m-%d %H:%M:%S') + ' 现在时间: ' + (created_at+datetime.timedelta(hours=8)).strftime('%Y-%m-%d %H:%M:%S')
+                # print('user_id ',user.id,"video_id :",video.id)
+                # print("hah",content)
+                if(created_at-complain.created_at).total_seconds() < 3600:
+                    return JsonResponse({'errno': 0, 'is_complaint': 1, 'msg': "投诉间隔小于1小时！" + content})
                 else:
                     return JsonResponse({'errno': 0, 'is_complaint': 0, 'msg': "可以投诉！"})
             else :
