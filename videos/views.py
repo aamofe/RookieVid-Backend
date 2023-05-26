@@ -792,45 +792,53 @@ def favorite_video(request):
         user_id = user.id
         video_id=request.POST.get('video_id')
         favorite_list=request.POST.getlist('favorite_list',[])
-        pprint.pprint(favorite_list)
         try:
             video=Video.objects.get(id=video_id)
             s=favorite_list[0]
             if ',' in s:
                 id_list=list(map(int,s.split(',')))
-                for f_id in id_list : #添加收藏
-                    print('f_id : ',f_id)
-                    print("type : ",type(f_id))
-                    if not f_id :
-                        print("haha")
-                        continue
-                    try:
-                        favorite=Favorite.objects.get(id=f_id,user_id=user_id)
-                    except:
-                        return JsonResponse({'errno': 1, 'msg': "收藏夹不属于用户！"})
-                    try :
-                        favlist=Favlist.objects.get(favorite_id=f_id,video_id=video_id)
-                    except Favlist.DoesNotExist:#如果没收藏过这个视频，那就判断这个收藏夹有多少视频，如果为1
-                        favlist=Favlist(user_id=user_id,favorite_id=f_id,video_id=video_id,created_at=datetime.datetime.now())
-                        favlist.save()
-                        favorite_video_list=Favlist.objects.filter(favorite_id=f_id)
-                        if favorite_video_list.count()==1:
-                            favorite.cover_url=video.cover_url
-                            favorite.save()
+            else :
+                id_list=[]
+            for f_id in id_list : #添加收藏
+                # print('f_id : ',f_id)
+                # print("type : ",type(f_id))
+                if not f_id :
+                    print("haha")
+                    continue
+                try:
+                    favorite=Favorite.objects.get(id=f_id,user_id=user_id)
+                except:
+                    return JsonResponse({'errno': 1, 'msg': "收藏夹不属于用户！"})
+                try :
+                    favlist=Favlist.objects.get(favorite_id=f_id,video_id=video_id)
+                except Favlist.DoesNotExist:#如果没收藏过这个视频，那就判断这个收藏夹有多少视频，如果为1
+                    print("应该收藏的f_id :",f_id)
+                    favlist=Favlist.objects.create(
+                        user_id=user_id,
+                        favorite_id=f_id,
+                        video_id=video_id,
+                        created_at=timezone.now()
+                    )
+                    print('收藏具体列表的 id : ',favlist.id)
+                    # favorite_video_list=Favlist.objects.filter(favorite_id=f_id)
+                    # if favorite_video_list.count()==1:
+                    #     favorite.cover_url=video.cover_url
+                    #     favorite.save()
             favorites=Favorite.objects.filter(user_id=user_id)
             for f in favorites:#用户所有的收藏夹
-                if str(f.id) not in favorite_list :#没被选中
-                    try :
-                        favlist=Favlist.objects.get(favorite_id=f.id,video_id=video_id)#如果有收藏记录就需要删掉
+                if f.id not in id_list :#没被选中
+                    pprint.pprint(id_list)
+                    try:
+                        favlist = Favlist.objects.get(favorite_id=f.id,video_id=video.id)
                         favlist.delete()
                         #查找该收藏夹还有多少个视频
                         favorite_video_list=Favlist.objects.filter(favorite_id=f.id).order_by('created_at')
                         cover_url=''#更新收藏夹的封面
                         while(favorite_video_list.count()>1):
-                            video_id=favorite_video_list.first().video_id
+                            v_id=favorite_video_list.first().video_id
                             try :
-                                video=Video.objects.get(id=video_id)
-                                cover_url=video.cover_url
+                                v=Video.objects.get(id=v_id)
+                                cover_url=v.cover_url
                                 break
                             except Video.DoesNotExist:
                                 favorite_video_list.first().delete()
@@ -840,8 +848,7 @@ def favorite_video(request):
                         f.cover_url=cover_url
                         f.save()
                     except Favlist.DoesNotExist:
-                        pass
-            
+                        continue
             return JsonResponse({'errno': 0, 'msg': "收藏成功！"})
         except Video.DoesNotExist:
             return JsonResponse({'errno': 1, 'msg': "视频不存在！"})
