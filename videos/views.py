@@ -848,6 +848,8 @@ def is_complaint(request):
     if request.method=='GET':
         user=request.user
         video_id=request.GET.get('video_id')
+        if not video_id:
+            return JsonResponse({'errno': 1, 'is_complaint': 0, 'msg': "请传入视频ID！"})
         created_at =timezone.now()
         try:
             video=Video.objects.get(id=video_id)
