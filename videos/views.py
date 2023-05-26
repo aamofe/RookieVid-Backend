@@ -42,11 +42,12 @@ def get_video_by_label(request):
         #print("num =",num)
         videos = Video.objects.filter(label=label,reviewed_status=1)
         if num==-1:
-            num=len(videos)
+            num=videos.count()
+            #print("num  : ",num)
         elif num<-1:
             return JsonResponse({'errno': 1, 'msg': "数量错误！"})
         else :
-            num=min(num,len(videos))
+            num=min(num,videos.count())
         random_videos = sample(list(videos), num)
         video_list = []
         for video in random_videos:
@@ -534,8 +535,8 @@ def view_video(request):
                 for r in reply:
                     cc['reply'].append(r.to_dict())
                 comment_list.append(cc)
-                total_comment_amount+=len(reply)+1
-                cc['reply_amount']=len(reply)
+                total_comment_amount+=reply.count()+1
+                cc['reply_amount']=reply.count()
                 comment_amount+=1
                 #print('id: ',cc.get('id'))
 
@@ -563,8 +564,8 @@ def get_comment(request):
                 for r in reply:
                     cc['reply'].append(r.to_dict())
                 comment_amount += 1
-                total_comment_amount += len(reply) + 1
-                cc['reply_amount'] = len(reply)
+                total_comment_amount += reply.count() + 1
+                cc['reply_amount'] = reply.count()
                 comment_list.append(cc)
             amount['total_comment_amount'] = total_comment_amount
             amount['comment_amount'] = comment_amount
@@ -790,13 +791,11 @@ def favorite_video(request):
         user_id = user.id
         video_id=request.POST.get('video_id')
         favorite_list=request.POST.getlist('favorite_list',[])
-        print(len(favorite_list))
-        pprint.pprint(favorite_list)
         try:
             video=Video.objects.get(id=video_id)
             for f_id in favorite_list : #添加收藏
-                print("id ?? : ",f_id)
                 if not f_id :
+                    print("haha")
                     continue
                 try:
                     favorite=Favorite.objects.get(id=f_id,user_id=user_id)
@@ -808,7 +807,7 @@ def favorite_video(request):
                     favlist=Favlist(user_id=user_id,favorite_id=f_id,video_id=video_id,created_at=datetime.datetime.now())
                     favlist.save()
                     favorite_video_list=Favlist.objects.filter(favorite_id=f_id)
-                    if len(favorite_video_list)==1:
+                    if favorite_video_list.count()==1:
                         favorite.cover_url=video.cover_url
                         favorite.save()
             favorites=Favorite.objects.filter(user_id=user_id)
@@ -820,7 +819,7 @@ def favorite_video(request):
                         #查找该收藏夹还有多少个视频
                         favorite_video_list=Favlist.objects.filter(favorite_id=f.id).order_by('created_at')
                         cover_url=''#更新收藏夹的封面
-                        while(len(favorite_video_list)>1):
+                        while(favorite_video_list.count()>1):
                             video_id=favorite_video_list.first().video_id
                             try :
                                 video=Video.objects.get(id=video_id)
@@ -828,7 +827,7 @@ def favorite_video(request):
                                 break
                             except Video.DoesNotExist:
                                 favorite_video_list.first().delete()
-                        if len(favorite_video_list)==0:
+                        if favorite_video_list.count()==0:
                             cover_url='https://aamofe-1315620690.cos.ap-beijing.myqcloud.com/favorite_cover/0.png'
 
                         f.cover_url=cover_url
@@ -889,10 +888,11 @@ def complain_video(request):
     else:
         return JsonResponse({'errno': 1, 'msg': "请求方法错误！"})
 
-
+@validate_login
 def get_data(request):
     if request.method=='GET':
         user=request.user
+        print("user_id : ",user.id)
         #评论数 粉丝 播放量 点赞 收藏 投稿的视频总数
         amount={}
         total_comment_amount=0
@@ -902,17 +902,19 @@ def get_data(request):
         total_favorite_amount=0
         video_amount=0
         videos=Video.objects.filter(user_id=user.id)
+        
+        print('len :' ,videos.count())
         if videos.exists():
-            video_amount=len(videos)
+            video_amount=videos.count()
             for video in videos:
                 comments=Comment.objects.filter(video_id=video.id)
-                total_comment_amount+=len(comments)
+                total_comment_amount+=comments.count()
                 total_view_amount+=video.view_amount
                 total_like_amount+=video.like_amount
                 favlist=Favlist.objects.filter(video_id=video.id)
-                total_favorite_amount=len(favlist)
+                total_favorite_amount+=favlist.count()
         followers=Follow.objects.filter(following_id=user.id)
-        follower_amount=len(followers)
+        follower_amount=followers.count()
         amount['follower_amount']=follower_amount
         amount['total_comment_amount'] =total_comment_amount
         amount['total_view_amount'] =total_view_amount
