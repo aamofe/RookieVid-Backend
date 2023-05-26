@@ -786,10 +786,10 @@ def favorite_video(request):
         user_id = user.id
         video_id=request.POST.get('video_id')
         favorite_list=request.POST.getlist('favorite_list',[])
-        print(len(favorite_list))
         try:
             video=Video.objects.get(id=video_id)
             for f_id in favorite_list : #添加收藏
+                print("id ?? : ",f_id)
                 try:
                     favorite=Favorite.objects.get(id=f_id,user_id=user_id)
                 except:
@@ -826,7 +826,7 @@ def favorite_video(request):
                         favorite.save()
                     except Favlist.DoesNotExist:
                         pass
-
+            
             return JsonResponse({'errno': 0, 'msg': "收藏成功！"})
         except Video.DoesNotExist:
             return JsonResponse({'errno': 1, 'msg': "视频不存在！"})
