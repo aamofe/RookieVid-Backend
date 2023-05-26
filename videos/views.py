@@ -760,20 +760,24 @@ def get_favorite(request):#判断是否已收藏
         user=request.user
         user_id=user.id
         video_id=request.GET.get('video_id')
-        favorite_list = []
-        try:
-            favorite = Favorite.objects.filter(user_id=user_id)
-            for f in favorite:
-                ff = f.to_dict()
-                try:
-                    favlist = Favlist.objects.get(video_id=video_id, favorite_id=f.id)
-                    ff['favorited'] = 1
-                except Favlist.DoesNotExist:
-                    ff['favorited'] = 0
-                favorite_list.append(ff)
-            return JsonResponse({'errno': 0, 'favorite':favorite_list,'msg': "获取收藏夹成功！"})
-        except Favorite.DoesNotExist:
-            return JsonResponse({'errno': 1, 'msg': "无收藏夹，请创建收藏夹！"})
+        try :
+            video=Video.objects.get(id=video_id)
+            favorite_list = []
+            try:
+                favorite = Favorite.objects.filter(user_id=user_id)
+                for f in favorite:
+                    ff = f.to_dict()
+                    try:
+                        favlist = Favlist.objects.get(video_id=video_id, favorite_id=f.id)
+                        ff['favorited'] = 1
+                    except Favlist.DoesNotExist:
+                        ff['favorited'] = 0
+                    favorite_list.append(ff)
+                return JsonResponse({'errno': 0, 'favorite':favorite_list,'msg': "获取收藏夹成功！"})
+            except Favorite.DoesNotExist:
+                return JsonResponse({'errno': 1, 'msg': "无收藏夹，请创建收藏夹！"})
+        except Video.DoesNotExist:
+            return JsonResponse({'errno': 1, 'msg': "视频不存在，请重新传入！"})
     else:
          return JsonResponse({'errno': 1, 'msg': "请求方法错误！"})
 
@@ -785,9 +789,12 @@ def favorite_video(request):
         video_id=request.POST.get('video_id')
         favorite_list=request.POST.getlist('favorite_list',[])
         print(len(favorite_list))
+        pprint.pprint(favorite_list)
         try:
             video=Video.objects.get(id=video_id)
             for f_id in favorite_list : #添加收藏
+                if not f_id :
+                    continue
                 try:
                     favorite=Favorite.objects.get(id=f_id,user_id=user_id)
                 except:
@@ -808,7 +815,7 @@ def favorite_video(request):
                         favlist=Favlist.objects.get(favorite_id=f.id,video_id=video_id)#如果有收藏记录就需要删掉
                         favlist.delete()
                         #查找该收藏夹还有多少个视频
-                        favorite_video_list=Favlist.objects.filter(favorite_id=f_id).order_by('created_at')
+                        favorite_video_list=Favlist.objects.filter(favorite_id=f.id).order_by('created_at')
                         cover_url=''#更新收藏夹的封面
                         while(len(favorite_video_list)>1):
                             video_id=favorite_video_list.first().video_id
@@ -820,8 +827,9 @@ def favorite_video(request):
                                 favorite_video_list.first().delete()
                         if len(favorite_video_list)==0:
                             cover_url='https://aamofe-1315620690.cos.ap-beijing.myqcloud.com/favorite_cover/0.png'
-                        favorite.cover_url=cover_url
-                        favorite.save()
+
+                        f.cover_url=cover_url
+                        f.save()
                     except Favlist.DoesNotExist:
                         pass
 
@@ -839,20 +847,23 @@ def is_complaint(request):
         video_id=request.GET.get('video_id')
         created_at = datetime.datetime.now()  # 获取当前时间，可以根据需要调整时区
         created_at = timezone.make_aware(created_at, timezone.get_current_timezone())  # 将时间对象设定为带时区信息的
-
-        #print('user_id: ', user.id, 'video_id: ', video_id)
-        complains = Complain.objects.filter(video_id=video_id, user_id=user.id).order_by('created_at')
-        if complains.exists():
-            complain = complains.first()
-            complain_created_at = timezone.localtime(complain.created_at)
-            content='上一次投诉时间: '+str(complain_created_at)+ '这次投诉时间: '+str(created_at)
-            if (complain_created_at - created_at).total_seconds() < 3600:
-                return JsonResponse({'errno': 0,'is_complaint':1, 'msg': "投诉间隔小于1小时！"+content})
-            else:
-                return JsonResponse({'errno': 0, 'is_complaint': 0, 'msg': "可以投诉！"})
-        else :
-            print("不存在 啊 ")
-            return JsonResponse({'errno': 0,'is_complaint':0, 'msg': "可以投诉！"})
+        try:
+            video=Video.objects.get(id=video_id)
+            #print('user_id: ', user.id, 'video_id: ', video_id)
+            complains = Complain.objects.filter(video_id=video_id, user_id=user.id).order_by('created_at')
+            if complains.exists():
+                complain = complains.first()
+                complain_created_at = timezone.localtime(complain.created_at)
+                content='上一次投诉时间: '+str(complain_created_at)+ '这次投诉时间: '+str(created_at)
+                if (complain_created_at - created_at).total_seconds() < 3600:
+                    return JsonResponse({'errno': 0,'is_complaint':1, 'msg': "投诉间隔小于1小时！"+content})
+                else:
+                    return JsonResponse({'errno': 0, 'is_complaint': 0, 'msg': "可以投诉！"})
+            else :
+                print("不存在 啊 ")
+                return JsonResponse({'errno': 0,'is_complaint':0, 'msg': "可以投诉！"})
+        except Video.DoesNotExist:
+            return JsonResponse({'errno': 0, 'is_complaint': 1, 'msg': "视频不存在，不可以投诉！"})
 @validate_login
 def complain_video(request):
     if request.method=='POST':
@@ -890,6 +901,24 @@ def get_data(request):
         videos=Video.objects.filter(user_id=user.id)
         if videos.exists():
             video_amount=len(videos)
+            for video in videos:
+                comments=Comment.objects.filter(video_id=video.id)
+                total_comment_amount+=len(comments)
+                total_view_amount+=video.view_amount
+                total_like_amount+=video.like_amount
+                favlist=Favlist.objects.filter(video_id=video.id)
+                total_favorite_amount=len(favlist)
+        followers=Follow.objects.filter(following_id=user.id)
+        follower_amount=len(followers)
+        amount['follower_amount']=follower_amount
+        amount['total_comment_amount'] =total_comment_amount
+        amount['total_view_amount'] =total_view_amount
+        amount['total_like_amount'] =total_like_amount
+        amount['total_favorite_amount'] =total_favorite_amount
+        amount['video_amount'] =video_amount
+        return JsonResponse({'errno':0,'amount':amount})
+    else:
+        return JsonResponse({'errno':1,'amount':'请求方法错误'})
 
 
 
