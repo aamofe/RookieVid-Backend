@@ -26,4 +26,5 @@ urlpatterns=[
     path('get_video_by_view_amount',get_video_by_view_amount),
     path('get_one_video',get_one_video),
     #path('test',test),
+    path('get_data',get_data),
 ]
