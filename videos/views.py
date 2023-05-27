@@ -792,11 +792,15 @@ def favorite_video(request):
         user_id = user.id
         video_id=request.POST.get('video_id')
         favorite_list=request.POST.getlist('favorite_list',[])
+        id_list=[]
         try:
             video=Video.objects.get(id=video_id)
             s=favorite_list[0]
             if ',' in s:
                 id_list=list(map(int,s.split(',')))
+            elif len(s)!=0:
+                id_list.append(int(s))
+                print('ssss : ',id_list[0])
             else :
                 id_list=[]
             for f_id in id_list : #添加收藏
