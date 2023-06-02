@@ -816,22 +816,22 @@ def favorite_video(request):
                 try :
                     favlist=Favlist.objects.get(favorite_id=f_id,video_id=video_id)
                 except Favlist.DoesNotExist:#如果没收藏过这个视频，那就判断这个收藏夹有多少视频，如果为1
-                    print("应该收藏的f_id :",f_id)
+                    #print("应该收藏的f_id :",f_id)
                     favlist=Favlist.objects.create(
                         user_id=user_id,
                         favorite_id=f_id,
                         video_id=video_id,
                         created_at=timezone.now()
                     )
-                    print('收藏具体列表的 id : ',favlist.id)
-                    # favorite_video_list=Favlist.objects.filter(favorite_id=f_id)
-                    # if favorite_video_list.count()==1:
-                    #     favorite.cover_url=video.cover_url
-                    #     favorite.save()
+                    #print('收藏具体列表的 id : ',favlist.id)
+                    favorite_video_list=Favlist.objects.filter(favorite_id=f_id)
+                    if favorite_video_list.count()==1:
+                        favorite.cover_url=video.cover_url
+                        favorite.save()
             favorites=Favorite.objects.filter(user_id=user_id)
             for f in favorites:#用户所有的收藏夹
                 if f.id not in id_list :#没被选中
-                    pprint.pprint(id_list)
+                    #pprint.pprint(id_list)
                     try:
                         favlist = Favlist.objects.get(favorite_id=f.id,video_id=video.id)
                         favlist.delete()
@@ -848,9 +848,8 @@ def favorite_video(request):
                                 favorite_video_list.first().delete()
                         if favorite_video_list.count()==0:
                             cover_url='https://aamofe-1315620690.cos.ap-beijing.myqcloud.com/favorite_cover/0.png'
-
-                        f.cover_url=cover_url
-                        f.save()
+                            f.cover_url=cover_url
+                            f.save()
                     except Favlist.DoesNotExist:
                         continue
             return JsonResponse({'errno': 0, 'msg': "收藏成功！"})

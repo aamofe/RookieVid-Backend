@@ -1,5 +1,6 @@
 from django.db import models
-
+import pytz
+shanghai_tz = pytz.timezone('Asia/Shanghai')
 # Create your models here.
 class Complain(models.Model):
     user_id = models.IntegerField('投诉者ID')
@@ -10,12 +11,13 @@ class Complain(models.Model):
     is_message_sent=models.IntegerField('是否已经给投诉人发送消息',default=0)
 
     def to_dict(self):
+        created_at_shanghai = (self.created_at.astimezone(shanghai_tz)).strftime('%Y-%m-%d %H:%M:%S')
         return {
             'id':self.id,
             'user_id':self.user_id,
             'video_id':self.user_id,
             'reason':self.reason,
             'status':self.status,
-            'created_at':self.created_at,
+            'created_at':created_at_shanghai,
             'is_message_sent':self.is_message_sent
         }
