@@ -1,5 +1,7 @@
 from django.db import models
 import pytz
+
+from accounts.models import User
 shanghai_tz = pytz.timezone('Asia/Shanghai')
 # Create your models here.
 class Complain(models.Model):
@@ -12,9 +14,11 @@ class Complain(models.Model):
 
     def to_dict(self):
         created_at_shanghai = (self.created_at.astimezone(shanghai_tz)).strftime('%Y-%m-%d %H:%M:%S')
+        user = User.objects.get(id=self.user_id)
         return {
             'id':self.id,
             'user_id':self.user_id,
+            'username':user.username,
             'video_id':self.user_id,
             'reason':self.reason,
             'status':self.status,

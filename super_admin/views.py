@@ -10,6 +10,7 @@ import datetime
 from django.utils import timezone
 # Create your views here.
 from decorator.decorator_permission import validate_login, validate_all
+from videos.views import delete_cover_method, delete_video_method
 @validate_login
 def get_review_video(request):
     if request.method=='GET':
@@ -63,7 +64,9 @@ def review_video(request):
                             c.is_message_sent=1
                             c.status=1
                             c.save()
-                            
+                    file_extension = video.cover_url.split('.')[-1]  # 获取文件后缀
+                    delete_cover_method(video.cover_url,video.id,file_extension)
+                    delete_video_method(video.id)
                     video.delete()
                 except Complain.DoesNotExist:
                     pass
@@ -73,7 +76,7 @@ def review_video(request):
                 send_sys_notification(0, u.id, title, content,4, u.id)
                 return JsonResponse({'errno': 0, 'msg': "审核不通过！"})
             else:
-                video.reviewed_status=0#记得修改！！！
+                video.reviewed_status=1
                 video.reviewed_at=timezone.now()
                 video.save()
                 try :#判断是否被投诉过
@@ -113,14 +116,22 @@ def review_complain_video(request):
         op=request.POST.get('op')
         try:
             video=Video.objects.get(id=video_id)
+            complains=Complain.objects.filter(video_id=video_id,status=0)
+            for complain in complains:
+                complain.status=1
+                complain.save()
             if op=='review':
                 video.reviewed_status=0
+                
                 video.save()
-                return JsonResponse({'errno': 1, 'msg': "视频已进入重审队列！"})
+                return JsonResponse({'errno': 0, 'msg': "视频已进入重审队列！"})
             elif op=='delete':
+                file_extension = video.cover_url.split('.')[-1]  # 获取文件后缀
+                delete_cover_method(video.cover_url,video.id,file_extension)
+                delete_video_method(video.id)
                 video.delete()
                 #发消息
-                return JsonResponse({'errno': 1, 'msg': "视频已删除！"})
+                return JsonResponse({'errno': 0, 'msg': "视频已删除！"})
             else :
                 return JsonResponse({'errno': 1, 'msg': "操作错误！"})
         except Video.DoesNotExist:
@@ -143,8 +154,7 @@ def get_complain_video(request):
                     try:
                         video = Video.objects.get(id=c.video_id)
                         v = video.to_simple_dict()
-                        y = {"complain_id": c.id, "username": user.username, "reason": c.reason,
-                             "created_at": c.created_at}
+                        y =c.to_dict()
                         existing_video = next((v for v in video_list if v['id'] == video.id), None)
                         if existing_video:
                             existing_video['complain'].append(y)

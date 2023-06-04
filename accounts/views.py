@@ -480,6 +480,8 @@ def get_favorite(request):
 def get_favlist(request):
     if request.method == 'GET':
         favorite_id = request.GET.get('favorite_id')
+        print(request)
+        print(favorite_id)
         video_list = []
         try:
             favorite = Favorite.objects.get(id=favorite_id)
@@ -489,8 +491,9 @@ def get_favlist(request):
         if Favlist.objects.filter(favorite_id=favorite_id).exists():
             favlists = Favlist.objects.filter(favorite_id=favorite_id)
             for favlist in favlists:
-                video = Video.objects.get(id=favlist.video_id)
-                video_data = Video.to_simple_dict(video)
+                if Video.objects.filter(id=favlist.video_id).exists():
+                    video = Video.objects.get(id=favlist.video_id)
+                    video_data = Video.to_simple_dict(video)
                 video_list.append(video_data)
             return JsonResponse({'errno': 0, 'msg': "收藏列表查询成功", 'data': video_list, 'cover_url': favorite.cover_url})
         else:

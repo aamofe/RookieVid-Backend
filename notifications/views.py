@@ -112,6 +112,8 @@ def check_notification(request):
     if request.method == 'GET':
         user = request.user
         notification_id = request.GET.get('notification_id')
+        print(request)
+        print(notification_id)
         try:
             notification = Notification.objects.get(id=notification_id)
             if int(notification.send_to) != user.id:

@@ -729,7 +729,10 @@ def create_favorite(request):
         user_id=user.id
         #print('hah',user_id)
         title = request.POST.get('title')
-        description = "这是一个收藏夹"
+        description= request.POST.get('description')
+        if not description:
+            print(111222)
+            description = "这是一个收藏夹"
         is_private=0
         #favorite_cover=request.FILES.get("favorite_cover")
         # if len(status)==0 or not status.isdigit():
