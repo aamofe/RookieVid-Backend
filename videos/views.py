@@ -34,9 +34,10 @@ def get_video_by_label(request):
     if request.method == 'GET':
         label = request.GET.get('label')
         num=request.GET.get('num')
+        #print("num : ",num)
         if label not in LABELS:
             return JsonResponse({'errno': 1, 'msg': "标签错误！"})
-        if len(num)==0 :
+        if not num:
             return JsonResponse({'errno': 1, 'msg': "视频数量错误！"})
         else:
             num=int(num)
@@ -84,7 +85,8 @@ def get_video_by_hotness(request):
     if request.method == 'GET':
         # 构建热度计算表达式
         num=request.GET.get('num')
-        if len(num)==0 or not num.isdigit():
+        print("什么东西num : ",num)
+        if not num or not num.isdigit():
             return JsonResponse({'errno': 1, 'msg': "视频数量错误！"})
         else:
             num=int(num)
@@ -116,7 +118,7 @@ def get_related_video(request):
         num=request.GET.get('num')
         if not video_id.isdigit():
             return JsonResponse({'errno': 1, 'msg': "视频ID错误！"})
-        if len(num)==0 or not num.isdigit():
+        if not num or not num.isdigit():
             return JsonResponse({'errno': 1, 'msg': "视频数量错误！"})
         else:
             num=int(num)
@@ -133,6 +135,7 @@ def get_related_video(request):
                 video_list.append(video_dict)
             return JsonResponse({'errno': 0, 'msg': "返回成功！", 'video': video_list}, safe=False)
         except Video.DoesNotExist:
+            print("看来不错在 video_id : ",video_id)
             return JsonResponse({'errno': 1, 'msg': "视频不存在！"})
     else:
         return JsonResponse({'errno': 1, 'msg': "请求方法错误！"})
@@ -282,6 +285,10 @@ def upload_video(request):
         #     os.remove(temp_cover_path)
         # except PIL.UnidentifiedImageError:
         #     return JsonResponse({'errno': 1, 'msg': "无法打开封面文件"})
+        # with Image.open(cover_file) as img:
+        #     img = img.convert('RGB')
+        #     if img.width<img.height:#截取图片的中间部分，并等比扩大为1920×1080
+                
         max_file_size = 200 * 1024 * 1024  # 300MB
         if video_file.size > max_file_size:
             return JsonResponse({'errno': 1, 'msg': "视频文件大小超过300MB限制"})
@@ -731,9 +738,17 @@ def create_favorite(request):
         title = request.POST.get('title')
         description= request.POST.get('description')
         if not description:
-            print(111222)
+            #print(111222)
             description = "这是一个收藏夹"
-        is_private=0
+        is_private= request.POST.get('is_private')
+        #print('provate : ',is_private)
+        if not is_private or not is_private.isdigit() :
+            is_private = 0
+        is_private=int(is_private)
+        if is_private!=0 and is_private!=1:
+            is_private=0
+        if not title:
+            title="默认收藏夹"
         #favorite_cover=request.FILES.get("favorite_cover")
         # if len(status)==0 or not status.isdigit():
         #     return JsonResponse({'errno': 1, 'msg': "收藏夹状态错误！"})
@@ -745,10 +760,10 @@ def create_favorite(request):
             favorite=Favorite.objects.get(user_id=user_id,title=title)
             return JsonResponse({'errno': 1, 'msg': "收藏夹已存在！"})
         except Favorite.DoesNotExist:
-            if len(title)==0:
-                title="默认收藏夹"
+            #print('provate : ',is_private)
             favorite=Favorite(title=title,description=description,is_private=is_private,user_id=user_id,created_at=datetime.datetime.now())
             favorite.save()
+            #print("创建好了 private : ",is_private)
             # if favorite_cover:
             #     res, cover_url, label = upload_cover_method(favorite_cover,favorite.id, "favorite_cover")
             #     if res == -2:
