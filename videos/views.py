@@ -219,11 +219,11 @@ def upload_cover_method(cover_file, cover_id,url):
         if label=='Politics':
             #pprint.pprint(response_submit)
 
-            content = "您的视频被判定为违规！" + \
+            content = "您的视频封面被判定为违规！" + \
                       "标签是" + Label[label] +  "，具体内容是：" + response_submit['PoliticsInfo']['Label'] + \
                       "。判定比例高达 " + str(Score) + "%。请修改"
         else:
-            content = "您的视频被判定为违规！" +\
+            content = "您的视频封面被判定为违规！" +\
                   "标签是："+Label[label]+"，分类为："+Category[category]+"，具体内容是"+SubLabel[subLabel]+\
                   "。判定比例高达" + str(Score) + "%。请修改！"
         delete_cover_method(url,cover_id,file_extension)
@@ -289,7 +289,7 @@ def upload_video(request):
         #     img = img.convert('RGB')
         #     if img.width<img.height:#截取图片的中间部分，并等比扩大为1920×1080
                 
-        max_file_size = 200 * 1024 * 1024  # 300MB
+        max_file_size = 300 * 1024 * 1024  # 300MB
         if video_file.size > max_file_size:
             return JsonResponse({'errno': 1, 'msg': "视频文件大小超过300MB限制"})
         video = Video.objects.create(
@@ -344,12 +344,13 @@ def call_back(request):
         if result == 0 :#审核正常
             video.reviewed_status=1#审核通过
             video.video_url = url
+            video.reviewed_at=timezone.now()
             video.save()
             #给up主发信息
             title = "视频发布成功！"
             content = "亲爱的" + user.username + '你好呀!\n' '视频审核通过啦，快和小伙伴分享分享你的视频叭~'
             #create_message(user_id, title, content)
-            send_sys_notification(2,video.user_id,title,content,2,video.user_id)
+            send_sys_notification(2,video.user_id,title,content,0,0)
             #给所有粉丝发信息
             fan_list=Follow.objects.filter(following_id=user.id)
             for fan in fan_list:
@@ -357,20 +358,20 @@ def call_back(request):
                 title = "你关注的博主发布新视频啦！"
                 fan=User.objects.get(id=fan_id)
                 content = "亲爱的" + fan.username + '你好呀!\n''你关注的博主发布新视频啦！快去看看，然后在评论区留下自己的感受叭~'
-                send_sys_notification(2,fan.id,title,content,2,video.id)
+                send_sys_notification(2,fan.id,title,content,0,0)
         elif result==1:
             video.delete()
             delete_cover_method(video.id,file_extension)
             delete_video_method(video.id)
             title = "视频审核失败！"
             content = "亲爱的" + user.username + ' 你好呀!\n视频内容好像带有一点' + content + '呢！\n下次不要再上传这类的视频了哟，这次就算了嘿嘿~'
-            send_sys_notification(0,video.user_id,title,content,2,0)
+            send_sys_notification(0,video.user_id,title,content,0,0)
             #给up主发信息
         elif result==2:
             #给up主发信息
             title = "视频需要人工审核！"
             content = "亲爱的" + user.username + ' 你好呀!\n视频内容好像带有一点' + content + '呢！\n我们需要人工再进行审核，不要着急哦~'
-            send_sys_notification(0,video.user_id,title,content,2,0)
+            send_sys_notification(0,video.user_id,title,content,0,0)
         return JsonResponse({'errno': 1, 'result':result})
 @validate_login
 def delete_video(request):
@@ -604,7 +605,7 @@ def comment_video(request):
             comment.save()
             title = "有人给你点赞啦"
             content = "亲爱的" + u.username + ' 你好呀!\n有人给你点赞啦，快去看看吧'
-            send_sys_notification(2, u.id , title, content, 2, video.id)
+            send_sys_notification(2, u.id , title, content, 0, 0)
             return JsonResponse({'errno': 0, 'msg': '评论成功'})
         except Video.DoesNotExist:
             return JsonResponse({'errno': 1, 'msg': '视频不存在'})
@@ -653,12 +654,13 @@ def reply_comment(request):
                             comment_id=comment_id,
                             content=content,
                             video_id=video_id,
-                            created_at=datetime.datetime.now())
+                            created_at=timezone.now()
+                )
                 c.save()
                 u=User.objects.get(id=comment.user_id)
                 title = "有人给你回复啦"
                 content = "亲爱的" + u.username + ' 你好呀!\n有人给你的评论回复啦，快去看看吧'
-                send_sys_notification(3, u.id, title, content, 2, video.id)
+                send_sys_notification(3, u.id, title, content, 0, 0)
                 return JsonResponse({'errno': 0, 'errmsg': '回复成功'})
             except Video.DoesNotExist:
                 return JsonResponse({'errno': 1, 'msg': '视频不存在'})
@@ -719,7 +721,7 @@ def like_video(request):
                 u = User.objects.get(id=video.user_id)
                 title = "有人给你的视频点赞啦"
                 content = "亲爱的" + u.username + ' 你好呀!\n有人给你的视频点赞啦，快去看看吧'
-                send_sys_notification(2, u.id, title, content, 2, video.id)
+                send_sys_notification(2, u.id, title, content, 0, 0)
                 video.like_amount += 1
                 video.save()
                 # ('video.like_amount : ',video.like_amount)
@@ -739,7 +741,7 @@ def create_favorite(request):
         description= request.POST.get('description')
         if not description:
             #print(111222)
-            description = "这是一个收藏夹"
+            description = ""
         is_private= request.POST.get('is_private')
         #print('provate : ',is_private)
         if not is_private or not is_private.isdigit() :
@@ -761,7 +763,12 @@ def create_favorite(request):
             return JsonResponse({'errno': 1, 'msg': "收藏夹已存在！"})
         except Favorite.DoesNotExist:
             #print('provate : ',is_private)
-            favorite=Favorite(title=title,description=description,is_private=is_private,user_id=user_id,created_at=datetime.datetime.now())
+            favorite=Favorite(title=title,
+                              description=description,
+                              is_private=is_private,
+                              user_id=user_id,
+                              created_at=timezone.now()
+                              )
             favorite.save()
             #print("创建好了 private : ",is_private)
             # if favorite_cover:

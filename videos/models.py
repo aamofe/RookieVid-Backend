@@ -67,6 +67,7 @@ class Video(models.Model):
             'reviewed_at': self.reviewed_at,
             'reviewed_status': self.reviewed_status,
             'view_amount': self.view_amount,
+            'user_id':user.id,
             'fav_amount':fav_amount,
             'like_amount': self.like_amount,
             'user_name': user.username,

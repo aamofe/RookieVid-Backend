@@ -101,7 +101,7 @@ def register(request):
         password_2 = request.POST.get('password_2')
 
         # 用户名长度为1-20位
-        if re.match('.{1,20}', str(username)) is None:
+        if re.match('[\S]{1,20}', str(username)) is None:
             return JsonResponse({'errno': 1, 'msg': "用户名不合法"})
         # 密码长度为8-16位，且同时包含数字和字母
         if re.match('(?!^[0-9]+$)(?!^[a-zA-Z]+$)[0-9A-Za-z]{8,16}', str(password_1)) is None:
@@ -139,7 +139,7 @@ def login(request):
             # token = str(encode, encoding='utf-8')
             token = str(encode)
             print(encode)
-            return JsonResponse({'token': token, 'status': user.status, 'errno': 0, 'msg': "登录成功"})
+            return JsonResponse({'token': token, 'user_id': user.id, 'status': user.status, 'errno': 0, 'msg': "登录成功"})
         else:
             return JsonResponse({'errno': 1, 'msg': "密码错误"})
     else:
@@ -168,18 +168,24 @@ def display_myprofile(request):
 
 
 @csrf_exempt
-@validate_login
+@validate_all
 def display_profile(request):
     # 如果用户已登录，展示用户信息
     if request.method == 'GET':
         user_id = request.GET.get('user_id')
         user = request.user
+        myid = -1
         print(type(user_id))
+        if isinstance(user, AnonymousUser):
+            is_login = 0
+        else:
+            is_login = 1
+            myid = user.id
 
-        if int(user_id) == user.id:  # 看自己的主页status是0，看别人的是1
+        if myid != -1 and int(user_id) == myid:  # 看自己的主页status是0，看别人的是1
             context = User.to_dict(user)
-            following = Follow.objects.filter(follower_id=user.id).count()
-            follower = Follow.objects.filter(following_id=user.id).count()
+            following = Follow.objects.filter(follower_id=myid).count()
+            follower = Follow.objects.filter(following_id=myid).count()
             return JsonResponse({'context': context, 'following': following, 'follower': follower, 'status': 0,
                                  'errno': 0, 'msg': '查询用户信息成功'})
         else:
@@ -193,7 +199,7 @@ def display_profile(request):
                     is_followed = 1
                 print(type(is_followed))
                 return JsonResponse({'context': context, 'following': following, 'follower': follower, 'status': 1,
-                                     'is_followed': is_followed, 'errno': 0, 'msg': '查询用户信息成功'})
+                                     'is_followed': is_followed, 'is_login': is_login, 'errno': 0, 'msg': '查询用户信息成功'})
             except User.DoesNotExist:
                 return JsonResponse({'errno': 1, 'msg': '用户不存在'})
     else:
@@ -252,12 +258,29 @@ def upload_avatar_method(avatar_file, avatar_id, url):
         Bucket=bucket_name,
         BizType='f90478ee0773ac0ab139c875ae167353',
         Key=avatar_key,
-        DetectType=(CiDetectType.PORN | CiDetectType.ADS)
+        # DetectType=(CiDetectType.PORN | CiDetectType.ADS)
     )
     res = int(response_submit['Result'])
-    if res == 1:
+    Score=int(response_submit['Score'])
+    if res == 1 or res==2 or Score>=60:
+        category=response_submit['Category']
+        label=response_submit['Label']
+        subLabel=response_submit['SubLabel']
+        if label=='Politics':
+            #pprint.pprint(response_submit)
+
+            content = "您的头像图片被判定为违规！" + \
+                      "标签是" + Label[label] +  "，具体内容是：" + response_submit['PoliticsInfo']['Label'] + \
+                      "。判定比例高达 " + str(Score) + "%。请修改"
+        else:
+            content = "您的头像图片被判定为违规！" +\
+                  "标签是："+Label[label]+"，分类为："+Category[category]+"，具体内容是"+SubLabel[subLabel]+\
+                  "。判定比例高达" + str(Score) + "%。请修改！"
         delete_avatar_method(avatar_id, file_extension)
-        return res, avatar_url, response_submit['Label']
+        return 1,None,content
+    # if res == 1:
+    #    delete_avatar_method(avatar_id, file_extension)
+    #    return res, avatar_url, response_submit['Label']
     return res, avatar_url, None
 
 
@@ -276,6 +299,10 @@ def edit_avatar(request):
     if request.method == 'POST':
         user = request.user
         avatar_file = request.FILES.get('avatar_file')
+        print(request)
+        print(avatar_file)
+        if not avatar_file:
+            return JsonResponse({'errno': 1, 'msg': "头像文件未上传"})
         # avatar_url = upload_photo_method(avatar_file, user.id)  # 头像的命名改成id
 
         avatar_id = user.id
@@ -364,12 +391,15 @@ def create_follow(request):
             return JsonResponse({'errno': 1, 'msg': "用户不存在"})
         follower_id = request.user.id
         follower_user = request.user.username
+        if int(following_id) == follower_id:
+            return JsonResponse({'errno': 1, 'msg': "无法关注自己的账号"})
         if Follow.objects.filter(follower_id=follower_id, following_id=following_id).exists():
             return JsonResponse({'errno': 1, 'msg': "已关注用户"})
         follow = Follow(follower_id=follower_id, following_id=following_id)
         follow.save()
-        send_sys_notification(follower_id, following_id, '新增关注', f'{follower_user}开始关注你啦', 1, follower_id)
-        resp = {'follower': follower_id, 'following': int(following_id), 'errno': 0, 'msg': '关注成功'}
+        send_sys_notification(follower_id, following_id, '新增关注', f'{follower_user}开始关注你啦', 0, 0)
+        follower_num = Follow.objects.filter(following_id=following_id).count()
+        resp = {'follower': follower_id, 'following': int(following_id), 'follower_num': follower_num, 'errno': 0, 'msg': '关注成功'}
         return JsonResponse(resp)
     else:
         return JsonResponse({'errno': 1, 'msg': "请求方式错误"})
@@ -384,7 +414,8 @@ def remove_follow(request):
         try:
             follow = Follow.objects.get(follower_id=follower_id, following_id=following_id)
             follow.delete()
-            resp = {'follower': follower_id, 'following': int(following_id), 'errno': 0, 'msg': '取关成功'}
+            follower_num = Follow.objects.filter(following_id=following_id).count()
+            resp = {'follower': follower_id, 'following': int(following_id), 'follower_num': follower_num, 'errno': 0, 'msg': '取关成功'}
             return JsonResponse(resp)
         except Follow.DoesNotExist:
             return JsonResponse({'errno': 1, 'msg': "未关注用户"})
@@ -439,6 +470,8 @@ def get_videos(request):
     if request.method == 'GET':
         video_list = []
         user_id = request.GET.get('user_id')
+        print(request)
+        print('user_id='+user_id)
         if Video.objects.filter(user_id=user_id).exists():
             videos = Video.objects.filter(user_id=user_id)
             for video in videos:
@@ -494,7 +527,7 @@ def get_favlist(request):
                 if Video.objects.filter(id=favlist.video_id).exists():
                     video = Video.objects.get(id=favlist.video_id)
                     video_data = Video.to_simple_dict(video)
-                video_list.append(video_data)
+                    video_list.append(video_data)
             return JsonResponse({'errno': 0, 'msg': "收藏列表查询成功", 'data': video_list, 'cover_url': favorite.cover_url})
         else:
             return JsonResponse({'errno': 0, 'msg': "收藏夹为空", 'data': video_list, 'cover_url': favorite.cover_url})
