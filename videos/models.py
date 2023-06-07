@@ -53,16 +53,23 @@ class Video(models.Model):
     class Meta:
         app_label = 'videos'
     def to_simple_dict(self):
-        user = User.objects.get(id=self.user_id)
+        try:
+            user=User.objects.get(id=self.user_id)
+        except User.DoesNotExist:
+            user=User.objects.get(id=16)
         fav_amount = len(Favlist.objects.filter(video_id=self.id).values('user_id').distinct())
         created_at_shanghai = (self.created_at.astimezone(shanghai_tz)).strftime('%Y-%m-%d %H:%M:%S')
+        aacover_url=self.cover_url.replace("https://aamofe-1315620690.cos.ap-beijing.myqcloud.com", "http://aamofe.top")
+        aavideo_url=self.video_url.replace("https://aamofe-1315620690.cos.ap-beijing.myqcloud.com", "http://aamofe.top")
         return {
             'id': self.id,
             'label': self.label,
             'title': self.title,
             'description': self.description,
-            'video_url': self.video_url,
-            'cover_url': self.cover_url,
+            'video_url':aavideo_url,
+            #'video_url': self.video_url,
+            'cover_url': aacover_url,
+            #'cover_url': self.cover_url,
             'created_at': created_at_shanghai,
             'reviewed_at': self.reviewed_at,
             'reviewed_status': self.reviewed_status,
@@ -73,17 +80,25 @@ class Video(models.Model):
             'user_name': user.username,
         }
     def to_dict(self):
-        user=User.objects.get(id=self.user_id)
+        try:
+            user=User.objects.get(id=self.user_id)
+        except User.DoesNotExist:
+            user=User.objects.get(id=16)
         fav_amount = len(Favlist.objects.filter(video_id=self.id).values('user_id').distinct())
         follower=Follow.objects.filter(following_id=user.id)
         created_at_shanghai = (self.created_at.astimezone(shanghai_tz)).strftime('%Y-%m-%d %H:%M:%S')
+        aacover_url=self.cover_url.replace("https://aamofe-1315620690.cos.ap-beijing.myqcloud.com", "http://aamofe.top")
+        aavideo_url=self.video_url.replace("https://aamofe-1315620690.cos.ap-beijing.myqcloud.com", "http://aamofe.top")
+        #print("aaa : ",aacover_url)
         return {
             'id':self.id,
             'label':self.label,
             'title':self.title,
             'description':self.description,
-            'video_url': self.video_url,
-            'cover_url': self.cover_url,
+            'video_url':aavideo_url,
+            #'video_url': self.video_url,
+            'cover_url': aacover_url,
+            #'cover_url': self.cover_url,
             'created_at':created_at_shanghai,
             'reviewed_at':self.reviewed_at,
             'reviewed_status':self.reviewed_status,
@@ -110,12 +125,16 @@ class Comment(models.Model):
         app_label = 'videos'
     def to_dict(self):
         created_at_shanghai = (self.created_at.astimezone(shanghai_tz)).strftime('%Y-%m-%d %H:%M:%S')
+        try:
+            user=User.objects.get(id=self.user_id)
+        except User.DoesNotExist:
+            user=User.objects.get(id=16)
         return {
             'id': self.id,
             #'comment_id': self.comment_id,
-            'user_id': self.user_id,
-            'user_name': User.objects.get(id=self.user_id).username,
-            'avatar_url': User.objects.get(id=self.user_id).avatar_url,
+            'user_id': user.id,
+            'user_name': user.username,
+            'avatar_url': user.avatar_url,
             'video_id': self.video_id,
             'content': self.content,
             'created_at': created_at_shanghai,

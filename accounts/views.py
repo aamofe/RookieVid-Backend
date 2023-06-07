@@ -134,7 +134,7 @@ def login(request):
             return JsonResponse({'errno': 1, 'msg': "请先注册"})
         if user.password == password:  # 判断请求的密码是否与数据库存储的密码相同
             # request.session['id'] = user.uid
-            payload = {'exp': datetime.utcnow()+timedelta(days=2), 'id': user.id}
+            payload = {'exp': datetime.utcnow()+timedelta(days=5), 'id': user.id}
             encode = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
             # token = str(encode, encoding='utf-8')
             token = str(encode)
@@ -276,7 +276,7 @@ def upload_avatar_method(avatar_file, avatar_id, url):
             content = "您的头像图片被判定为违规！" +\
                   "标签是："+Label[label]+"，分类为："+Category[category]+"，具体内容是"+SubLabel[subLabel]+\
                   "。判定比例高达" + str(Score) + "%。请修改！"
-        delete_avatar_method(avatar_id, file_extension)
+        delete_avatar_method(url, avatar_id, file_extension)
         return 1,None,content
     # if res == 1:
     #    delete_avatar_method(avatar_id, file_extension)
@@ -284,9 +284,9 @@ def upload_avatar_method(avatar_file, avatar_id, url):
     return res, avatar_url, None
 
 
-def delete_avatar_method(avatar_id, file_extension):
+def delete_avatar_method(url,avatar_id,file_extension):
     client, bucket_name, bucket_region = get_cos_client()
-    avatar_key = f"avatar_file/{avatar_id}.{file_extension}"
+    avatar_key = f"{url}/{avatar_id}.{file_extension}"
     response = client.delete_object(
                 Bucket=bucket_name,
                 Key=avatar_key
@@ -471,7 +471,7 @@ def get_videos(request):
         video_list = []
         user_id = request.GET.get('user_id')
         print(request)
-        print('user_id='+user_id)
+        # print('user_id='+user_id)
         if Video.objects.filter(user_id=user_id).exists():
             videos = Video.objects.filter(user_id=user_id)
             for video in videos:
@@ -485,7 +485,7 @@ def get_videos(request):
 
 
 @csrf_exempt
-@validate_login
+@validate_all
 def get_favorite(request):
     if request.method == 'GET':
         user_id = request.GET.get('user_id')
@@ -509,7 +509,7 @@ def get_favorite(request):
 
 
 @csrf_exempt
-@validate_login
+@validate_all
 def get_favlist(request):
     if request.method == 'GET':
         favorite_id = request.GET.get('favorite_id')

@@ -350,7 +350,7 @@ def call_back(request):
             title = "视频发布成功！"
             content = "亲爱的" + user.username + '你好呀!\n' '视频审核通过啦，快和小伙伴分享分享你的视频叭~'
             #create_message(user_id, title, content)
-            send_sys_notification(2,video.user_id,title,content,0,0)
+            send_sys_notification(0,video.user_id,title,content,0,0)
             #给所有粉丝发信息
             fan_list=Follow.objects.filter(following_id=user.id)
             for fan in fan_list:
@@ -358,7 +358,7 @@ def call_back(request):
                 title = "你关注的博主发布新视频啦！"
                 fan=User.objects.get(id=fan_id)
                 content = "亲爱的" + fan.username + '你好呀!\n''你关注的博主发布新视频啦！快去看看，然后在评论区留下自己的感受叭~'
-                send_sys_notification(2,fan.id,title,content,0,0)
+                send_sys_notification(video.user_id,fan.id,title,content,0,0)
         elif result==1:
             video.delete()
             delete_cover_method(video.id,file_extension)
@@ -605,7 +605,7 @@ def comment_video(request):
             comment.save()
             title = "有人给你点赞啦"
             content = "亲爱的" + u.username + ' 你好呀!\n有人给你点赞啦，快去看看吧'
-            send_sys_notification(2, u.id , title, content, 0, 0)
+            send_sys_notification(user_id, u.id , title, content, 0, 0)
             return JsonResponse({'errno': 0, 'msg': '评论成功'})
         except Video.DoesNotExist:
             return JsonResponse({'errno': 1, 'msg': '视频不存在'})
@@ -660,7 +660,7 @@ def reply_comment(request):
                 u=User.objects.get(id=comment.user_id)
                 title = "有人给你回复啦"
                 content = "亲爱的" + u.username + ' 你好呀!\n有人给你的评论回复啦，快去看看吧'
-                send_sys_notification(3, u.id, title, content, 0, 0)
+                send_sys_notification(user_id, u.id, title, content, 0, 0)
                 return JsonResponse({'errno': 0, 'errmsg': '回复成功'})
             except Video.DoesNotExist:
                 return JsonResponse({'errno': 1, 'msg': '视频不存在'})
@@ -721,7 +721,7 @@ def like_video(request):
                 u = User.objects.get(id=video.user_id)
                 title = "有人给你的视频点赞啦"
                 content = "亲爱的" + u.username + ' 你好呀!\n有人给你的视频点赞啦，快去看看吧'
-                send_sys_notification(2, u.id, title, content, 0, 0)
+                send_sys_notification(user_id, u.id, title, content, 0, 0)
                 video.like_amount += 1
                 video.save()
                 # ('video.like_amount : ',video.like_amount)
