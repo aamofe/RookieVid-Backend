@@ -8,6 +8,7 @@ import tempfile
 import uuid
 import PIL
 import cv2
+import numpy as np
 import pytz
 from django.utils import timezone
 from qcloud_cos.cos_comm import CiDetectType
@@ -27,6 +28,8 @@ from videos.cos_utils import get_cos_client, Category, Label, SubLabel
 from videos.models import History, Video, Like, Comment, Reply, Favorite, Favlist
 from random import sample
 from django.contrib.auth.models import AnonymousUser
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 # 视频分类标签
 LABELS = ['娱乐', '军事', '生活', '音乐', '学习', '科技', '运动', '游戏', '影视', '美食']
 @validate_all
@@ -122,18 +125,36 @@ def get_related_video(request):
             return JsonResponse({'errno': 1, 'msg': "视频数量错误！"})
         else:
             num=int(num)
+        if num == 0:
+            return JsonResponse({'errno': 1, 'msg': "参数不合法！"})
         try:
             video=Video.objects.get(id=video_id)
-            
-            videos=Video.objects.filter(Q(user_id=video.user_id)|Q (label=video.label),reviewed_status=1)
-            if num==0:
-                return JsonResponse({'errno': 1, 'msg': "参数不合法！"})
-            video_list=[]
-            random_videos = sample(list(videos), num)
-            for video in random_videos:
-                video_dict = video.to_simple_dict()
-                video_list.append(video_dict)
-            return JsonResponse({'errno': 0, 'msg': "返回成功！", 'video': video_list}, safe=False)
+            videos=Video.objects.filter(reviewed_status=1)
+            #提取视频的特征
+            # 提取视频的特征
+            features = [f"{video.title} {video.description} {video.label}" for video in videos]
+            # 创建CountVectorizer对象，并将特征转换为特征向量
+            vectorizer = CountVectorizer()
+            feature_vectors = vectorizer.fit_transform(features)
+            # 计算视频之间的相似度矩阵
+            similarity_matrix = cosine_similarity(feature_vectors)
+            # 获取目标视频的索引
+            target_video_index = video.id
+            # 获取相似视频的索引列表
+            similar_videos_indices = np.argsort(similarity_matrix[target_video_index])[::-1]
+            # 构建推荐视频列表
+            recommendation_list = []
+            for index in similar_videos_indices:
+                if index != target_video_index:
+                    try:
+                        v=Video.objects.get(id=index)
+                    except Video.DoesNotExist:
+                        continue
+                    recommendation_list.append(v.to_simple_dict())
+                    if len(recommendation_list) == 2*num:
+                        break
+            random_videos = sample(list(recommendation_list), num)
+            return JsonResponse({'errno': 0, 'msg': "返回成功！", 'video':random_videos}, safe=False)
         except Video.DoesNotExist:
             print("看来不错在 video_id : ",video_id)
             return JsonResponse({'errno': 1, 'msg': "视频不存在！"})
@@ -532,11 +553,16 @@ def view_video(request):
                     followed=1
                 except Follow.DoesNotExist:
                     followed=0
-                history=History.objects.create(
+                try:
+                    history=History.objects.get(user_id=user_id,video_id=video_id)
+                    history.created_at=timezone.now()
+                    history.save()
+                except History.DoesNotExist:
+                    history=History.objects.create(
                     user_id=user_id,
                     video_id=video_id,
                     created_at=timezone.now()
-                )
+                    )
             v['liked']=liked
             v['favorited']=favorited
             v['followed']=followed
