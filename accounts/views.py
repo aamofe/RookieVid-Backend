@@ -116,6 +116,8 @@ def register(request):
             # 数据库存取：新建 User 对象，赋值并保存
             new_user = User(uid=uid, username=username, password=password_1, email=email)
             new_user.save()  # 一定要save才能保存到数据库中
+            content = '亲爱的' + new_user.username + "欢迎加入我们的大家庭！让我们一起开启一个精彩的旅程吧！"
+            send_sys_notification(0, new_user.id, "RookieVid感谢您的加入", content, 0, 0)
             return JsonResponse({'uid': uid, 'errno': 0, 'msg': "注册成功"})
     else:
         return JsonResponse({'errno': 1, 'msg': "请求方式错误"})
@@ -151,6 +153,36 @@ def logout(request):
     request.session.flush()
     return JsonResponse({'errno': 0, 'msg': "注销成功"})
 
+
+@csrf_exempt
+@validate_login
+def unsubscribe(request):
+    if request.method == 'GET':
+        user = request.user
+        if Favorite.objects.filter(user_id=user.id).exists():
+            favorites = Favorite.objects.filter(user_id=user.id)
+            for favorite in favorites:
+                favorite.delete()
+        if Favlist.objects.filter(user_id=user.id).exists():
+            favlists = Favlist.objects.filter(user_id=user.id)
+            for favlist in favlists:
+                favlist.delete()
+        if Notification.objects.filter(send_to=user.id).exists():
+            notifications = Notification.objects.filter(send_to=user.id)
+            for notification in notifications:
+                notification.delete()
+        print(user.id)
+        user.username = '用户已注销'
+        user.email = ''
+        user.password = ''
+        user.avatar_url = 'https://aamofe-1315620690.cos.ap-beijing.myqcloud.com/avatar_file/default.png'
+        user.signature = '删号跑路，江湖再见！'
+        user.save()
+        
+        return JsonResponse({'errno': 0, 'msg': "用户注销成功", 'data': user.to_dict()})
+    else:
+        return JsonResponse({'errno': 1, 'msg': "请求方式错误"})
+    
 
 @csrf_exempt
 @validate_login
@@ -216,8 +248,10 @@ def edit_profile(request):
         # 能不能有自动填入之类的（？
         print(username)
         print(signature)
-        if re.match('.{1,20}', str(username)) is None:
-            return JsonResponse({'errno': 0, 'msg': "用户名不合法"})
+        if re.match('[\S]{1,20}', str(username)) is None:
+            return JsonResponse({'errno': 1, 'msg': "用户名不合法"})
+        if re.match('.{0,100}', str(signature)) is None:
+            return JsonResponse({'errno': 2, 'msg': "个性签名太长啦"})
         user = request.user
         user.username = username
         user.signature = signature

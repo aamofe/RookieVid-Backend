@@ -260,6 +260,8 @@ def upload_video(request):
             return JsonResponse({'errno': 1, 'msg': "标签不能为空！"})
         if not title :
             return JsonResponse({'errno':1, 'msg': "标题不能为空！"})
+        if len(title)>45:
+            return JsonResponse({'errno':1, 'msg': "标题必须少于45字！"})
         if not description:
             return JsonResponse({'errno': 1, 'msg': "描述不能为空！"})
         if label not in LABELS:
@@ -471,7 +473,7 @@ def search(request):
         # 使用 Q 对象进行模糊查询
         query_video = Q(title__icontains=keyword) | Q(description__icontains=keyword)
         videos = Video.objects.filter(query_video)
-        query_user = Q(username__icontains=keyword) | Q(signature__icontains=keyword)
+        query_user = Q(username__icontains=keyword) | Q(signature__icontains=keyword)|Q(uid__icontains=keyword)
         users=User.objects.filter(query_user)
         video_list = []
         user_list=[]
