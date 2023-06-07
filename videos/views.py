@@ -24,7 +24,7 @@ from accounts.models import User, Follow
 from notifications.views import send_sys_notification
 from super_admin.models import Complain
 from videos.cos_utils import get_cos_client, Category, Label, SubLabel
-from videos.models import Video, Like, Comment, Reply, Favorite, Favlist
+from videos.models import History, Video, Like, Comment, Reply, Favorite, Favlist
 from random import sample
 from django.contrib.auth.models import AnonymousUser
 # 视频分类标签
@@ -532,7 +532,11 @@ def view_video(request):
                     followed=1
                 except Follow.DoesNotExist:
                     followed=0
-                
+                history=History.objects.create(
+                    user_id=user_id,
+                    video_id=video_id,
+                    created_at=timezone.now()
+                )
             v['liked']=liked
             v['favorited']=favorited
             v['followed']=followed
@@ -553,6 +557,7 @@ def view_video(request):
 
             v['total_comment_amount'] =total_comment_amount
             v['comment_amount'] =comment_amount
+            
             return JsonResponse({'errno': 0, 'msg': "返回成功！", 'video': v, 'comment': comment_list},safe=False)
         except Video.DoesNotExist:
             return JsonResponse({'errno': 1, 'msg': '视频不存在'})
@@ -972,6 +977,16 @@ def get_data(request):
     else:
         return JsonResponse({'errno':1,'amount':'请求方法错误'})
 
-
+@validate_login
+def get_history(request):
+    if request.method=='GET':
+        user=request.user
+        histories=History.objects.filter(user_id=user.id)
+        history_list=[]
+        for h in histories:
+            history_list.append(h.to_dict())
+        return JsonResponse({'errno':0,'history':history_list,'msg':"返回成功"})
+    else:
+        return JsonResponse({'errno':1,'msg':'请求方法错误'})
 
 

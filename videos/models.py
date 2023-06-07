@@ -184,3 +184,20 @@ class Favorite(models.Model):
             'created_at:':created_at_shanghai,
         }
 
+
+class History(models.Model):
+    user_id = models.IntegerField(verbose_name='播放记录所有者',null=True )
+    video_id = models.IntegerField(verbose_name='观看的视频ID',default=1, null=True)
+    created_at = models.DateTimeField(verbose_name='观看的时间', auto_now_add=True)
+    def to_dict(self):
+        created_at_shanghai = (self.created_at.astimezone(shanghai_tz)).strftime('%Y-%m-%d %H:%M:%S')
+        video=Video.objects.get(id=self.video_id)
+        user=User.objects.get(id=video.user_id)
+        return{
+            'id':self.id,
+            'video':video.to_simple_dict(),
+            'user_name':user.username,
+            'user_id':user.id,
+            'avatar_url':user.avatar_url,
+            'created_at:':created_at_shanghai,
+        }

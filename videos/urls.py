@@ -27,4 +27,5 @@ urlpatterns=[
     path('get_one_video',get_one_video),
     #path('test',test),
     path('get_data',get_data),
+    path('get_history',get_history),
 ]
