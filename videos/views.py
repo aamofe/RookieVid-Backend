@@ -569,7 +569,7 @@ def get_comment(request):
         video_id = request.GET.get('video_id')
         try:
             video = Video.objects.get(id=video_id)
-            comments = Comment.objects.filter(video_id=video_id, comment_id=0).order_by('created_at')
+            comments = Comment.objects.filter(video_id=video_id, comment_id=0).order_by('-created_at')
             comment_list = []
             total_comment_amount = 0
             comment_amount = 0
@@ -981,7 +981,7 @@ def get_data(request):
 def get_history(request):
     if request.method=='GET':
         user=request.user
-        histories=History.objects.filter(user_id=user.id)
+        histories=History.objects.filter(user_id=user.id).order_by("-created_at")
         history_list=[]
         for h in histories:
             history_list.append(h.to_dict())

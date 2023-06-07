@@ -199,5 +199,5 @@ class History(models.Model):
             'user_name':user.username,
             'user_id':user.id,
             'avatar_url':user.avatar_url,
-            'created_at:':created_at_shanghai,
+            'created_at':created_at_shanghai,
         }
