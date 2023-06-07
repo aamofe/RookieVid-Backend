@@ -348,22 +348,33 @@ def call_back(request):
         JobId = data.get("trace_id")
         url = data.get("url")
         result = int(data.get("result"))
+
         porn_info = data.get("porn_info")#审核场景为涉黄的审核结果信息。
-        # "hit_flag": 0 ,"label": "","count": 0
         ads_info=data.get("ads_info")
-        content=''
-        if porn_info is not None and porn_info['label']:
-            content+=porn_info['label']
-        if ads_info is not None and ads_info['label']:
-            content+=porn_info['label']
+        terrorist_info=data.get("terrorist_info")
+        politics_info=data.get("'politics_info")
+
+        if ads_info.get("hit_flag")!=0:
+            score=ads_info.get("score")
+            content = "您的视频被判定为违规！" + "标签是:广告元素," +"判定比例高达 " + str(score) + "%。请修改！"
+        elif porn_info.get("hit_flag")!=0:
+            score=porn_info.get("score")
+            content = "您的视频被判定为违规！" + "标签是:涉黄元素," +"判定比例高达 " + str(score) + "%。请修改！"
+        elif politics_info.get("hit_flag")!=0:
+            score=politics_info.get("score")
+            content = "您的视频被判定为违规！" + "标签是:政治元素," +"判定比例高达 " + str(score) + "%。请修改！"
+        elif terrorist_info.get("hit_flag")!=0:
+            score=terrorist_info.get("score")
+            content = "您的视频被判定为违规！" + "标签是:暴力元素," +"判定比例高达 " + str(score) + "%。请修改！"
+        print(content)
+
         video_id=re.search(r'\d+(?=\.\w+$)', url).group()
         if not Video.objects.filter(id=video_id).exists():
             return JsonResponse({'errno': 1, 'result':result})
         video=Video.objects.get(id=video_id)
-        # 删除审核记录
         user=User.objects.get(id=video.user_id)
         file_extension = video.cover_url.split('.')[-1]  # 获取文件后缀
-        
+
         if result == 0 :#审核正常
             video.reviewed_status=1#审核通过
             video.video_url = url
@@ -393,6 +404,8 @@ def call_back(request):
         elif result==2:
             #给up主发信息
             title = "视频需要人工审核！"
+            video.video_url = url
+            video.save()
             content = "亲爱的" + user.username + ' 你好呀!\n视频内容好像带有一点' + content + '呢！\n我们需要人工再进行审核，不要着急哦~'
             send_sys_notification(0,video.user_id,title,content,0,0)
         return JsonResponse({'errno': 1, 'result':result})
