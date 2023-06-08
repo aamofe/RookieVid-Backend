@@ -356,16 +356,16 @@ def call_back(request):
 
         if ads_info.get("hit_flag")!=0:
             score=ads_info.get("score")
-            content = "您的视频被判定为违规！" + "标签是:广告元素," +"判定比例高达 " + str(score) + "%。请修改！"
+            content = "您的视频被判定为违规！" + "标签是:广告元素，" +"判定比例高达 " + str(score) + "%，"
         elif porn_info.get("hit_flag")!=0:
             score=porn_info.get("score")
-            content = "您的视频被判定为违规！" + "标签是:涉黄元素," +"判定比例高达 " + str(score) + "%。请修改！"
+            content = "您的视频被判定为违规！" + "标签是:涉黄元素，" +"判定比例高达 " + str(score) + "%，"
         elif politics_info.get("hit_flag")!=0:
             score=politics_info.get("score")
-            content = "您的视频被判定为违规！" + "标签是:政治元素," +"判定比例高达 " + str(score) + "%。请修改！"
+            content = "您的视频被判定为违规！" + "标签是:政治元素，" +"判定比例高达 " + str(score) + "%，"
         elif terrorist_info.get("hit_flag")!=0:
             score=terrorist_info.get("score")
-            content = "您的视频被判定为违规！" + "标签是:暴力元素," +"判定比例高达 " + str(score) + "%。请修改！"
+            content = "您的视频被判定为违规！" + "标签是:暴力元素，" +"判定比例高达 " + str(score) + "%，"
         print(content)
 
         video_id=re.search(r'\d+(?=\.\w+$)', url).group()
@@ -398,7 +398,7 @@ def call_back(request):
             delete_cover_method(video.id,file_extension)
             delete_video_method(video.id)
             title = "视频审核失败！"
-            content = "亲爱的" + user.username + ' 你好呀!\n视频内容好像带有一点' + content + '呢！\n下次不要再上传这类的视频了哟，这次就算了嘿嘿~'
+            content = "亲爱的" + user.username + ' 你好呀!\n'+ content + '\n下次不要再上传这类的视频了哟，这次就算了嘿嘿~'
             send_sys_notification(0,video.user_id,title,content,0,0)
             #给up主发信息
         elif result==2:
@@ -406,7 +406,7 @@ def call_back(request):
             title = "视频需要人工审核！"
             video.video_url = url
             video.save()
-            content = "亲爱的" + user.username + ' 你好呀!\n视频内容好像带有一点' + content + '呢！\n我们需要人工再进行审核，不要着急哦~'
+            content = "亲爱的" + user.username + ' 你好呀!\n' + content + '\n我们需要人工再进行审核，不要着急哦~'
             send_sys_notification(0,video.user_id,title,content,0,0)
         return JsonResponse({'errno': 1, 'result':result})
 @validate_login

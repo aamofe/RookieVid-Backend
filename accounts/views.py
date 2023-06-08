@@ -7,7 +7,7 @@ from decorator.decorator_permission import validate_login, validate_all
 from django.http import JsonResponse
 from django.core.mail import send_mail
 from RookieVid_Backend import settings
-from videos.cos_utils import get_cos_client
+from videos.cos_utils import Category, Label, SubLabel, get_cos_client
 from videos.models import Video, Favorite, Favlist
 from accounts.models import User, Follow, Vcode
 from notifications.views import send_sys_notification

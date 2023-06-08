@@ -59,7 +59,7 @@ def get_all_method(user_id):
     count_unread = 0
     count_all = 0
     try:
-        notifications = Notification.objects.filter(send_to=user_id)
+        notifications = Notification.objects.filter(send_to=user_id).order_by('-created_at')
         for notification in notifications:
             context_1 = notification.to_dict()
 
