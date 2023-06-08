@@ -59,17 +59,17 @@ class Video(models.Model):
             user=User.objects.get(id=16)
         fav_amount = len(Favlist.objects.filter(video_id=self.id).values('user_id').distinct())
         created_at_shanghai = (self.created_at.astimezone(shanghai_tz)).strftime('%Y-%m-%d %H:%M:%S')
-        aacover_url=self.cover_url.replace("https://aamofe-1315620690.cos.ap-beijing.myqcloud.com", "http://aamofe.top")
-        aavideo_url=self.video_url.replace("https://aamofe-1315620690.cos.ap-beijing.myqcloud.com", "http://aamofe.top")
+        #aacover_url=self.cover_url.replace("https://aamofe-1315620690.cos.ap-beijing.myqcloud.com", "http://aamofe.top")
+        #aavideo_url=self.video_url.replace("https://aamofe-1315620690.cos.ap-beijing.myqcloud.com", "http://aamofe.top")
         return {
             'id': self.id,
             'label': self.label,
             'title': self.title,
             'description': self.description,
-            'video_url':aavideo_url,
-            #'video_url': self.video_url,
-            'cover_url': aacover_url,
-            #'cover_url': self.cover_url,
+            #'video_url':aavideo_url,
+            'video_url': self.video_url,
+            #'cover_url': aacover_url,
+            'cover_url': self.cover_url,
             'created_at': created_at_shanghai,
             'reviewed_at': self.reviewed_at,
             'reviewed_status': self.reviewed_status,
@@ -87,18 +87,18 @@ class Video(models.Model):
         fav_amount = len(Favlist.objects.filter(video_id=self.id).values('user_id').distinct())
         follower=Follow.objects.filter(following_id=user.id)
         created_at_shanghai = (self.created_at.astimezone(shanghai_tz)).strftime('%Y-%m-%d %H:%M:%S')
-        aacover_url=self.cover_url.replace("https://aamofe-1315620690.cos.ap-beijing.myqcloud.com", "http://aamofe.top")
-        aavideo_url=self.video_url.replace("https://aamofe-1315620690.cos.ap-beijing.myqcloud.com", "http://aamofe.top")
+        # aacover_url=self.cover_url.replace("https://aamofe-1315620690.cos.ap-beijing.myqcloud.com", "http://aamofe.top")
+        # aavideo_url=self.video_url.replace("https://aamofe-1315620690.cos.ap-beijing.myqcloud.com", "http://aamofe.top")
         #print("aaa : ",aacover_url)
         return {
             'id':self.id,
             'label':self.label,
             'title':self.title,
             'description':self.description,
-            'video_url':aavideo_url,
-            #'video_url': self.video_url,
-            'cover_url': aacover_url,
-            #'cover_url': self.cover_url,
+            #'video_url':aavideo_url,
+            'video_url': self.video_url,
+            #'cover_url': aacover_url,
+            'cover_url': self.cover_url,
             'created_at':created_at_shanghai,
             'reviewed_at':self.reviewed_at,
             'reviewed_status':self.reviewed_status,
